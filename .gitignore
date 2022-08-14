@@ -1,0 +1,4 @@
+package.mk
+mount_romfs
+.vscode/
+obj/*
