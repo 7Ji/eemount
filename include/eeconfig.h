@@ -4,4 +4,6 @@
 
 bool eeconfig_initialize();
 void eeconfig_close();
-const char* eeconfig_get_string();
+char* eeconfig_get_string(const char *key);
+int eeconfig_get_int(const char *key);
+bool eeconfig_get_bool(const char *key, const bool bool_default);

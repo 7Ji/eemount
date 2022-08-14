@@ -23,7 +23,7 @@ void eeconfig_close() {
     }
 }
 
-const char *eeconfig_get_string(char *key) {
+char *eeconfig_get_string(const char *key) {
     char *line;
     size_t size_line = 0;
     size_t len_line;
@@ -32,6 +32,7 @@ const char *eeconfig_get_string(char *key) {
     char quote;
     char *value = NULL;
     char *line_value = NULL;
+    fseek(eeconfig, 0, SEEK_SET);
     while (getline(&line, &size_line, eeconfig) != -1) {
         switch (line[0]) {
             case '\0': // empty line
@@ -87,6 +88,75 @@ const char *eeconfig_get_string(char *key) {
     return value;
 }
 
+static char *eeconfig_bool_true[]  = {
+    "yes",
+    "true",
+    "y",
+    "t",
+    "1"
+};
+
+static char *eeconfig_bool_false[] = {
+    "no",
+    "false",
+    "n",
+    "f",
+    "0"
+};
+
+int eeconfig_get_int(const char *key) {
+    char *value = eeconfig_get_string(key);
+    if (value == NULL) {
+        logging(LOGGING_WARNING, "Configuration '%s' not found, defaulting to 0", key);
+        return 0;
+    }
+    if (value[0] == '\0') {
+        logging(LOGGING_WARNING, "Configuration '%s' is empty, defaulting to 0", key);
+        return 0;
+    }
+    char *ptr;
+    return (int)strtol(value, &ptr, 10);
+}
+
+bool eeconfig_get_bool(const char *key, const bool bool_default) {
+    char *value = eeconfig_get_string(key);
+    if (value == NULL) {
+        logging(LOGGING_WARNING, "Configuration '%s' not found, using default value '%d'", key, bool_default);
+        return bool_default;
+    }
+    if (value[0] == '\0') {
+        logging(LOGGING_WARNING, "Configuration '%s' is empty, using default value '%d'", key, bool_default);
+        return bool_default;
+    }
+    int i;
+    puts(value);
+    for (i=0; i<5; ++i) {
+        if (!strcasecmp(value, eeconfig_bool_true[i])) {
+            free(value);
+            return true;
+        }
+        if (!strcasecmp(value, eeconfig_bool_false[i])) {
+            free(value);
+            return false;
+        }
+    }
+    char *ptr;
+    long long_value = strtol(value, &ptr, 10);
+    free(value);
+    if (long_value > 0) {
+        return true;
+    }
+    if (long_value < 0) {
+        return false;
+    }
+    logging(LOGGING_WARNING, "Configuration '%s' set but is none of the possible bool value: True (yes, true, y, t, or any positive number including 1) False (no, false, n, f, 0, or any negative number)", key);
+    if (bool_default) {
+        logging(LOGGING_WARNING, "Defaulting configuration '%s' to true", key);
+    } else {
+        logging(LOGGING_WARNING, "Defaulting configuration '%s' to false", key);
+    }
+    return bool_default;
+}
 // bool eeconfig_read_bool() {
 
 // }

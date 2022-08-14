@@ -2,10 +2,13 @@
 #include "alloc.h"
 #include "logging.h"
 #include "sort.h"
+#include "eeconfig.h"
 
 #define MOUNT_EXT_PARENT        "/var/media"
 #define MOUNT_EXT_ROMS_PARENT   "roms"
 #define MOUNT_EXT_MARK          "emuelecroms"
+
+#define MOUNT_EECONFIG_DELAY    "ee_load.delay"
 
 static FILE *drive_check(const char *drive) {
     char *path_mark;
@@ -100,7 +103,13 @@ struct drive_helper *drive_get_list() {
     struct drive *drive;
     struct drive_helper *drive_helper = NULL;
     FILE *fp;
-
+    int delay = eeconfig_get_int(MOUNT_EECONFIG_DELAY);
+    if (delay > 0) {
+        logging(LOGGING_INFO, "Waiting %d seconds before getting drive list...", delay);
+        sleep(delay);
+    } else if (delay < 0) {
+        logging(LOGGING_WARNING, "Configuration '"MOUNT_EECONFIG_DELAY"' is set to a negative number %d, it is ignored and you should fix the config", delay);
+    }
     if ((dir = opendir(MOUNT_EXT_PARENT)) == NULL) {
         logging(LOGGING_ERROR, "Can not open '%s' to check all directories", MOUNT_EXT_PARENT);
         return NULL;

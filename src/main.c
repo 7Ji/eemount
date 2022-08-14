@@ -1,19 +1,35 @@
-#include "eeconfig.h"
-
+#if 0
 int main() {
     if (!eeconfig_initialize()) {
         return 1;
     } 
-    const char *value = eeconfig_get_string("ee_load.drive");
+    char *value = eeconfig_get_string("ee_load.drive");
     if (value) {
-        puts(value);
+        printf("load drive is %s\n", value);
+        free(value);
+    } else {
+        puts("no load drive");
+    }
+    bool bvalue = eeconfig_get_bool("ee_load.legacy", false);
+    if (bvalue) {
+        puts("using old mount");
+    } else {
+        puts("using new mount");
     }
     eeconfig_close();
     return 0;
 }
-#if 0
+#endif
+
+#include "drive.h"
+#include "eeconfig.h"
+#include "logging.h"
 int main() {
-    int i,j;
+    if (!eeconfig_initialize()) {
+        logging(LOGGING_FATAL, "Can not initialize eeconfig");
+        return 1;
+    }
+    unsigned int i,j;
     struct drive_helper *list = drive_get_list();
     if (list) {
         for (i=0; i<list->count_drives; ++i) {
@@ -26,9 +42,9 @@ int main() {
         }
         drive_helper_free(&list);
     }
+    eeconfig_close();
     return 0;
 }
-#endif
 
 #if 0
 int main() {
