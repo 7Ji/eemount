@@ -20,7 +20,7 @@ static FILE *drive_check(const char *drive) {
     }
 
     int len_path_mark_actual = snprintf(path_mark, len_path_mark + 1, MOUNT_EXT_PARENT"/%s/"MOUNT_EXT_ROMS_PARENT"/"MOUNT_EXT_MARK, drive);
-    if (len_path_mark_actual != len_path_mark) {
+    if ((size_t)len_path_mark_actual != len_path_mark) {
         logging(LOGGING_ERROR, "Formatted mark path '%s' length is wrong: expected %zu, actual %d", path_mark, len_path_mark, len_path_mark_actual);
         free(path_mark);
         return NULL;
@@ -44,7 +44,7 @@ static FILE *drive_check(const char *drive) {
     return fp;
 }
 
-static const bool drive_scan(struct drive *drive, FILE *fp) {
+static bool drive_scan(struct drive *drive, FILE *fp) {
     char *line, **system;
     bool note_empty = false;
     size_t size_line = 0;
@@ -80,7 +80,7 @@ static const bool drive_scan(struct drive *drive, FILE *fp) {
 }
 
 static void drive_free(struct drive *drive) {
-    for (int i=0; i<drive->count_systems; ++i) {
+    for (unsigned int i=0; i<drive->count_systems; ++i) {
         alloc_free_if_used((void **)((drive->systems)+i));
     }
     alloc_free_if_used((void **)&(drive->systems));
@@ -88,8 +88,7 @@ static void drive_free(struct drive *drive) {
 }
 
 void drive_helper_free(struct drive_helper **drive_helper) {
-    struct drive *drive;
-    for (int i=0; i<(*drive_helper)->count_drives; ++i) {
+    for (unsigned int i=0; i<(*drive_helper)->count_drives; ++i) {
         drive_free(((*drive_helper)->drives) + i);
     }
     alloc_free_if_used((void **)&((*drive_helper)->drives));

@@ -1,5 +1,6 @@
 #include "eeconfig.h"
 #include "logging.h"
+#include "alloc.h"
 
 #define EECONFIG_DIR       "/storage/.config/emuelec/configs"
 // #define EECONFIG_FILE      EECONFIG_DIR "/emuelec.conf"
@@ -7,7 +8,7 @@
 
 static FILE *eeconfig = NULL;
 
-const bool eeconfig_initialize() {
+bool eeconfig_initialize() {
     if ((eeconfig = fopen(EECONFIG_FILE, "r")) == NULL) {
         logging(LOGGING_ERROR, "Failed to open emuelec config file: '"EECONFIG_FILE"'");
         return false;
@@ -27,26 +28,32 @@ const char *eeconfig_get_string(char *key) {
     size_t size_line = 0;
     size_t len_line;
     size_t len_key = strlen(key);
+    size_t len_value;
     char quote;
-    char *value;
+    char *value = NULL;
+    char *line_value = NULL;
     while (getline(&line, &size_line, eeconfig) != -1) {
-        if (strncmp(line, key, strlen(key))) {
+        switch (line[0]) {
+            case '\0': // empty line
+            case '#':  // commen line
+                continue;
+        }
+        if (strncmp(line, key, len_key)) {
             continue;
         }
         len_line = strcspn(line, "\r\n");
         if (len_line <= len_key) {
             continue;
         }
-        if (len_line == len_key + 1) {
-            if (line[len_key] == '=') {
-                value = malloc(sizeof(char));
-                value[0] = '\0';
-                return value;
-            } else {
-                continue;
-            }
-        }
         if (line[len_key] != '=') {
+            continue;
+        }
+        if (len_line == len_key + 1) {
+            if ((value = alloc_optional_resize(value, sizeof(char))) == NULL) {
+                logging(LOGGING_ERROR, "Can not allocate memory for configuration value when reading config key '%s'", key);
+                return NULL;
+            }
+            value[0] = '\0';
             continue;
         }
         switch (line[len_key+1]) {
@@ -60,22 +67,30 @@ const char *eeconfig_get_string(char *key) {
                 quote = '\0';
                 break;
         }
-        if (quote != '\0') {
-            if (line[len_line-1] != quote) {
+        if (quote) {
+            if (line[len_line-1] != quote) { // ' and " must come in pair
                 logging(LOGGING_WARNING, "Single quote and double quote not come in pair in emuelec config, please check you config file. Ignored Problematic line:\n%s", line);
                 continue;
             }
+            len_value = len_line - len_key - 3;
+            line_value = line + len_key + 2;
+        } else {
+            len_value = len_line - len_key - 1;
+            line_value = line + len_key + 1;
         }
-
-        puts("config found");
+        if ((value = alloc_optional_resize(value, (len_value + 1)*sizeof(char))) == NULL) {
+            logging(LOGGING_ERROR, "Can not allocate memory for configuration value when reading config key '%s'", key);
+            return NULL;
+        }
+        strncpy(value, line_value, len_value);
     }
-    return NULL;
+    return value;
 }
 
-bool eeconfig_read_bool() {
+// bool eeconfig_read_bool() {
 
-}
+// }
 
-char *eeconfig_read(char *config, int *type) {
+// char *eeconfig_read(char *config, int *type) {
 
-}
+// }

@@ -3,7 +3,7 @@ DIR_INCLUDE = include
 DIR_SOURCE = src
 DIR_OBJECT = obj
 CC = gcc
-CFLAGS = -I$(DIR_INCLUDE)
+CFLAGS = -I$(DIR_INCLUDE) -Wall -Wextra
 
 LDFLAGS = -lsystemd
 

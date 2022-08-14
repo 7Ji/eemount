@@ -4,7 +4,10 @@ int main() {
     if (!eeconfig_initialize()) {
         return 1;
     } 
-    eeconfig_get_string("ee_load.drive");
+    const char *value = eeconfig_get_string("ee_load.drive");
+    if (value) {
+        puts(value);
+    }
     eeconfig_close();
     return 0;
 }
