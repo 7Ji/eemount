@@ -1,3 +1,5 @@
+#ifndef HAVE_ESCAPE_H
+#define HAVE_ESCAPE_H
 #include "common.h"
 #include <stdbool.h>
 #include <string.h>
@@ -26,3 +28,4 @@ Get the escaped string from a raw string
  \returns a pointer to the escaped string, NULL if the raw string is empty
 */
 char *escape_string(char *string);
+#endif

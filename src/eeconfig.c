@@ -1,7 +1,6 @@
 #include "eeconfig.h"
 #include "logging.h"
 #include "alloc.h"
-#include <limits.h>
 
 #define EECONFIG_DIR       "/storage/.config/emuelec/configs"
 #define EECONFIG_FILE      EECONFIG_DIR "/emuelec.conf"

@@ -1,3 +1,5 @@
+#ifndef HAVE_LOGGING_H
+#define HAVE_LOGGING_H
 #include "common.h"
 
 
@@ -13,3 +15,4 @@ enum logging_levels {
 };
 
 void logging(const int level, const char *format, ...);
+#endif

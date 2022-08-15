@@ -47,7 +47,7 @@ int main() {
 #ifndef PRINT_ONLY
     if (list && !root_mounted) {
         for (i=0; i<list->count_drives; ++i) {
-            if (list->drives[i].count_systems == 0) {
+            if (list->drives[i].count == 0) {
                 logging(LOGGING_INFO, "Mounting roms under external drive '%s' to /storage/roms", list->drives[i].name);
                 drive_mount(list->drives[i].name);
                 root_mounted = true;
@@ -62,11 +62,11 @@ int main() {
 #endif
     unsigned int j;
     if (list) {
-        for (i=0; i<list->count_drives; ++i) {
-            printf("DRIVE %d / %d: ", i+1, list->count_drives);
+        for (i=0; i<list->count; ++i) {
+            printf("DRIVE %d / %d: ", i+1, list->count);
             puts(list->drives[i].name);
-            for (j=0; j<list->drives[i].count_systems; ++j) {
-                printf(" - SYSTEM %d / %d: ", j+1, list->drives[i].count_systems-1);
+            for (j=0; j<list->drives[i].count; ++j) {
+                printf(" - SYSTEM %d / %d: ", j+1, list->drives[i].count-1);
                 puts(list->drives[i].systems[j]);
             }
         }

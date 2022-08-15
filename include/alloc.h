@@ -1,3 +1,5 @@
+#ifndef HAVE_ALLOC_H
+#define HAVE_ALLOC_H
 #include "common.h"
 
 /**
@@ -10,3 +12,4 @@
 void *alloc_optional_resize(void *ptr, size_t size);
 
 void alloc_free_if_used(void **ptr);
+#endif

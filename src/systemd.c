@@ -177,6 +177,7 @@ struct systemd_mount_helper *systemd_get_mounts() {
             logging(LOGGING_ERROR, "Failed to allocate memory for systemd mounts name");
             goto free_mount;
         }
+        // Note, we allow a sub-directory to be mounted here, this is not a bug, since we mount all system one by one, a sub-system will always be mounted after the parent-system. It's safe and nice to have.
         if ((mount->system = systemd_system_from_name(name)) == NULL) {
             logging(LOGGING_ERROR, "Failed to allocate memory for systemd mounts system");
             goto free_name;
