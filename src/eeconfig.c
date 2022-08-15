@@ -4,8 +4,8 @@
 #include <limits.h>
 
 #define EECONFIG_DIR       "/storage/.config/emuelec/configs"
-// #define EECONFIG_FILE      EECONFIG_DIR "/emuelec.conf"
-#define EECONFIG_FILE "/tmp/emuelec.conf"
+#define EECONFIG_FILE      EECONFIG_DIR "/emuelec.conf"
+// #define EECONFIG_FILE "/tmp/emuelec.conf"
 
 static FILE *eeconfig = NULL;
 

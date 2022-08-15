@@ -31,9 +31,9 @@ int main() {
         logging(LOGGING_FATAL, "Failed to initialize");
         return 1;
     }
-    bool root_mounted = false;
     struct systemd_mount_helper *systemd_helper = systemd_get_mounts();
 #ifndef PRINT_ONLY
+    bool root_mounted = false;
     if (systemd_helper) {
         if (systemd_helper->root) {
             logging(LOGGING_INFO, "Using systemd unit '%s' as mount handler for /storage/roms", systemd_helper->root->name);
@@ -77,7 +77,7 @@ int main() {
         for (i = 0; i<systemd_helper->count; ++i) {
             printf("system: %s\nname: %s\npath:%s\n------\n", systemd_helper->mounts[i].system, systemd_helper->mounts[i].name, systemd_helper->mounts[i].path);
         }
-        systemd_mount_helper_free(systemd_helper);
+        systemd_mount_helper_free(&systemd_helper);
     }
 
     systemd_release();
