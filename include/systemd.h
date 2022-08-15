@@ -32,3 +32,5 @@ void systemd_release();
  \returns true if active, false if not
 */
 bool systemd_is_active(char *path);
+
+char **systemd_list_service();

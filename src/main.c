@@ -24,11 +24,17 @@ int main() {
 #include "drive.h"
 #include "eeconfig.h"
 #include "logging.h"
+#include "systemd.h"
 int main() {
-    if (!eeconfig_initialize()) {
-        logging(LOGGING_FATAL, "Can not initialize eeconfig");
+    if (!systemd_init_bus() || !eeconfig_initialize()) {
+        logging(LOGGING_FATAL, "Failed to initialize");
         return 1;
     }
+    char *systemd_path;
+    if (systemd_encode_path("storage-roms.mount", &systemd_path)) {
+        puts(systemd_path);
+    }
+    systemd_list_service();
     unsigned int i,j;
     struct drive_helper *list = drive_get_list();
     if (list) {
@@ -42,6 +48,7 @@ int main() {
         }
         drive_helper_free(&list);
     }
+    systemd_release();
     eeconfig_close();
     return 0;
 }
