@@ -61,6 +61,10 @@ static bool drive_scan(struct drive *drive, FILE *fp) {
             }
             continue;
         }
+        if (len_line > 256) {
+            logging(LOGGING_WARNING, "Line ignored as it is too long, please fix the mark file for drive '%s' and fix the following line: %s", drive->name, line);
+            continue;
+        }
         if ((drive->systems = alloc_optional_resize(drive->systems, sizeof(char*)*(++(drive->count_systems)))) == NULL) {
             logging(LOGGING_ERROR, "Can not create/resize systems array when scanning drive '%s'", drive->name);
             return false;

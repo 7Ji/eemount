@@ -98,6 +98,10 @@ struct systemd_mount_helper *systemd_list_service() {
         if (r == 0) {
             break;
         }
+        if ((len = strlen(name)) > 255) {
+            logging(LOGGING_WARNING, "Systemd unit name too long, ignored it: %s", name);
+            continue;
+        }
         if (mounts_helper == NULL) {
             if ((mounts_helper = malloc(sizeof(struct systemd_mount_helper))) == NULL) {
                 logging(LOGGING_ERROR, "Failed to allocate memory for systemd mounts helper");
@@ -120,7 +124,6 @@ struct systemd_mount_helper *systemd_list_service() {
             }
         }
         mount = mounts_helper->mounts + mounts_helper->count - 1;
-        len = strlen(name);
         if ((mount->name = malloc((len+1)*sizeof(char))) == NULL) {
             logging(LOGGING_ERROR, "Failed to allocate memory for systemd mounts");
             goto free_mounts;
