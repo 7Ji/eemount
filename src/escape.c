@@ -50,8 +50,7 @@ char *escape_string(char *string) {
     }
     escape_array = escape_string_ids(string, &len_array);
     if (len_array == 0) {
-        escape_string = calloc(len_string + 1, sizeof(char));
-        strcpy(escape_string, string);
+        escape_string = strdup(string);
         return escape_string;
     }
     escape_string = calloc(len_string + len_array*2 + 1, sizeof(char));

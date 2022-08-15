@@ -173,12 +173,11 @@ struct drive_helper *drive_get_mounts() {
             drive = drive_helper->drives + drive_helper->count_drives - 1;
             drive->systems = NULL;
             drive->count_systems = 0;
-            if ((drive->name = malloc((strlen(dir_entry->d_name)+1)*sizeof(char))) == NULL) {
+            if ((drive->name = strdup(dir_entry->d_name)) == NULL) {
                 logging(LOGGING_ERROR, "Failed to allocate memory for drive name of drive '%s'", dir_entry->d_name);
                 --(drive_helper->count_drives);
                 goto free_drives;
             }
-            strcpy(drive->name, dir_entry->d_name);
             logging(LOGGING_INFO, "Start reading mark file for systems of drive '%s'", drive->name);
             if (drive_scan(drive, fp)) {
                 logging(LOGGING_INFO, "Finished scanning drive '%s'", drive->name);

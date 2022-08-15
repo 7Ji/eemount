@@ -1,6 +1,7 @@
 #include "systemd.h"
 #include "logging.h"
 #include "alloc.h"
+#include "sort.h"
 
 #define SYSTEMD_DESTINATION         "org.freedesktop.systemd1"
 #define SYSTEMD_INTERFACE_UNIT      SYSTEMD_DESTINATION".Unit"
@@ -58,15 +59,19 @@ bool systemd_is_active(char *path) {
 
 static char *systemd_system_from_name(const char *name) {
     size_t len = strlen(name);
-    char name_dup[len+1];
-    strcpy(name_dup, name);
+    char *name_dup = strdup(name);
+    if (name_dup == NULL) {
+        return NULL;
+    }
     char *system;
-    if ((system = malloc((len-len_systemd_mount_root-len_systemd_suffix+1)*sizeof(char))) == NULL) {
+    size_t len_system = len - len_systemd_mount_root - len_systemd_suffix;
+    if ((system = malloc((len_system + 1)*sizeof(char))) == NULL) {
         logging(LOGGING_ERROR, "Can not allocate memory for system name when scanning systemd units");
         return NULL;
     }
     name_dup[len-len_systemd_suffix] = '\0';
-    strcpy(system, name_dup + len_systemd_mount_root);
+    strncpy(system, name_dup + len_systemd_mount_root, len_system);
+    free(name_dup);
     return system;
 }
 void systemd_mount_free(struct systemd_mount *mount) {
@@ -163,26 +168,25 @@ struct systemd_mount_helper *systemd_get_mounts() {
                 goto free_mount;
             }
             mounts_helper->root = mount;
-            mount->system = NULL;
+            // mount->system = NULL;
         }
-        if ((mount->name = malloc((len+1)*sizeof(char))) == NULL) {
-            logging(LOGGING_ERROR, "Failed to allocate memory for systemd mounts");
+        if ((mount->name = strdup(name)) == NULL) {
+            logging(LOGGING_ERROR, "Failed to allocate memory for systemd mounts name");
             goto free_mount;
         }
         if ((mount->system = systemd_system_from_name(name)) == NULL) {
-            logging(LOGGING_ERROR, "Failed to allocate memory for systemd mounts");
+            logging(LOGGING_ERROR, "Failed to allocate memory for systemd mounts system");
             goto free_name;
         }
-        strcpy(mount->name, name);
         len = strlen(path);
-        if ((mount->path = malloc((len+1)*sizeof(char))) == NULL) {
+        if ((mount->path = strdup(path)) == NULL) {
             logging(LOGGING_ERROR, "Failed to allocate memory for systemd mounts");
             goto free_system;
         }
-        strcpy(mount->path, path);
     }
     sd_bus_message_close_container(reply);
     sd_bus_message_unref(reply);
+    qsort(mounts_helper->mounts, mounts_helper->count, sizeof(struct systemd_mount), sort_compare_systemd_mount);
     return mounts_helper;
 
 free_system:

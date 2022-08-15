@@ -36,7 +36,7 @@ bool systemd_is_active(char *path);
 struct systemd_mount {
     char *name;
     char *path;
-    char *system; // When this is null, it means /storage/roms itself
+    char *system; // When this is empty, it means /storage/roms itself. It should never be empty
 };
 
 struct systemd_mount_helper {
