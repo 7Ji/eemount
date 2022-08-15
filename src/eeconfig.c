@@ -1,6 +1,7 @@
 #include "eeconfig.h"
 #include "logging.h"
 #include "alloc.h"
+#include <limits.h>
 
 #define EECONFIG_DIR       "/storage/.config/emuelec/configs"
 // #define EECONFIG_FILE      EECONFIG_DIR "/emuelec.conf"
@@ -115,7 +116,12 @@ int eeconfig_get_int(const char *key) {
         return 0;
     }
     char *ptr;
-    return (int)strtol(value, &ptr, 10);
+    long long_value = strtol(value, &ptr, 10);
+    if (long_value > INT_MAX) {
+        return INT_MAX;
+    } else {
+        return (int)long_value;
+    }
 }
 
 bool eeconfig_get_bool(const char *key, const bool bool_default) {

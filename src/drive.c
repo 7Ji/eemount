@@ -9,6 +9,8 @@
 #define MOUNT_EXT_MARK          "emuelecroms"
 
 #define MOUNT_EECONFIG_DELAY    "ee_load.delay"
+#define MOUNT_EECONFIG_RETRY    "ee_mount.retry"
+#define MOUNT_EECONFIG_DRIVE    "global.externalmount"
 
 static FILE *drive_check(const char *drive) {
     char *path_mark;
@@ -108,64 +110,94 @@ struct drive_helper *drive_get_list() {
     struct drive_helper *drive_helper = NULL;
     FILE *fp;
     int delay = eeconfig_get_int(MOUNT_EECONFIG_DELAY);
-    if (delay > 0) {
-        logging(LOGGING_INFO, "Waiting %d seconds before getting drive list...", delay);
-        sleep(delay);
-    } else if (delay < 0) {
-        logging(LOGGING_WARNING, "Configuration '"MOUNT_EECONFIG_DELAY"' is set to a negative number %d, it is ignored and you should fix the config", delay);
+    char *target = eeconfig_get_string(MOUNT_EECONFIG_DRIVE);
+    int retry = eeconfig_get_int(MOUNT_EECONFIG_RETRY);
+    if (delay < 0) {
+        logging(LOGGING_WARNING, "Configuration '"MOUNT_EECONFIG_DELAY"' (time in seconds we should wait before each external drive scan) is set to a negative number %d, it is ignored and you should fix the config", delay);
     }
-    if ((dir = opendir(MOUNT_EXT_PARENT)) == NULL) {
-        logging(LOGGING_ERROR, "Can not open '%s' to check all directories", MOUNT_EXT_PARENT);
-        return NULL;
-    }
-    while ((dir_entry = readdir(dir)) != NULL) {
-        if ((dir_entry->d_type != DT_DIR) || !strcmp(dir_entry->d_name, ".") || !strcmp(dir_entry->d_name, "..") || ((fp = drive_check(dir_entry->d_name)) == NULL)) {
-            continue;
+    if (retry < 0) {
+        logging(LOGGING_WARNING, "Configuration '"MOUNT_EECONFIG_RETRY"' (counts we should retry scanning external drives) is set to a negative number %d, it is ignored and you should fix the config");
+    } 
+    for (int try = 0; try < retry+1; ++try) {
+        /*  Only under specific conditions will we retry:
+            1. /var/media must be accessible (Which means we should start after systemd-tmpfiles-setup.service)
+            2. No drive is found
+        In the follow situations we straightly abandon the scan:
+            1. Memory allocation failed (The system must be utterly broken)
+            2. At least one drive is found, even if there're still other drives to be scanned
+        So if you have at least one slow drive among all your external drives, you must set the delay according to the slowest one
+        */
+        logging(LOGGING_INFO, "Scanning external drives, try %d of %d", try+1, retry+1);
+        if (delay > 0) {
+            logging(LOGGING_INFO, "Waiting %d seconds before getting drive list...", delay);
+            sleep(delay);
         }
-        if (drive_helper == NULL) {
-            logging(LOGGING_INFO, "Start scanning drive '%s'", dir_entry->d_name);
-            if ((drive_helper = malloc(sizeof(struct drive_helper))) == NULL) {
-                logging(LOGGING_ERROR, "Failed to allocate memory for mount drive helper");
-                goto free_file;
+        if ((dir = opendir(MOUNT_EXT_PARENT)) == NULL) {
+            logging(LOGGING_ERROR, "Can not open '%s' to check all directories", MOUNT_EXT_PARENT);
+            return NULL;
+        }
+        while ((dir_entry = readdir(dir)) != NULL) {
+            if ((dir_entry->d_type != DT_DIR) || !strcmp(dir_entry->d_name, ".") || !strcmp(dir_entry->d_name, "..") || (target && strcmp(dir_entry->d_name, target)) || ((fp = drive_check(dir_entry->d_name)) == NULL)) {
+                /*
+                Skip the entry in case of:
+                    1. The entry is not directory
+                    2. The entry is either . (/var/media itself) or .. (/var)
+                    3. The entry's name is different from global.externalmount, if it is set (If it's empty then we ignore this)
+                    4. The markfile under it can't be opened (either becase it can't be opened or does not exist)
+                */
+                continue;
             }
-            drive_helper->drives = NULL;
-            drive_helper->count_drives = 0;
-        }
-        if (++(drive_helper->count_drives) > 1) {
-            if ((buffer = realloc(drive_helper->drives, sizeof(struct drive)*(drive_helper->count_drives))) == NULL) {
-                logging(LOGGING_ERROR, "Failed to allocate memory for mount drive");
+            logging(LOGGING_INFO, "Start scanning drive '%s'", dir_entry->d_name);
+            if (drive_helper == NULL) {
+                if ((drive_helper = malloc(sizeof(struct drive_helper))) == NULL) {
+                    logging(LOGGING_ERROR, "Failed to allocate memory for mount drive helper");
+                    goto free_file;
+                }
+                drive_helper->drives = NULL;
+                drive_helper->count_drives = 0;
+            }
+            if (++(drive_helper->count_drives) > 1) {
+                if ((buffer = realloc(drive_helper->drives, sizeof(struct drive)*(drive_helper->count_drives))) == NULL) {
+                    logging(LOGGING_ERROR, "Failed to allocate memory for mount drive entry '%s'", dir_entry->d_name);
+                    --(drive_helper->count_drives);
+                    goto free_drives;
+                }
+                drive_helper->drives = buffer;
+            } else {
+                if ((drive_helper->drives = malloc(sizeof(struct drive))) == NULL) {
+                    logging(LOGGING_ERROR, "Failed to allocate memory for mount drive entry '%s'", dir_entry->d_name);
+                    goto free_helper;
+                }
+            }
+            drive = drive_helper->drives + drive_helper->count_drives - 1;
+            drive->systems = NULL;
+            drive->count_systems = 0;
+            if ((drive->name = malloc((strlen(dir_entry->d_name)+1)*sizeof(char))) == NULL) {
+                logging(LOGGING_ERROR, "Failed to allocate memory for drive name of drive '%s'", dir_entry->d_name);
                 --(drive_helper->count_drives);
                 goto free_drives;
             }
-            drive_helper->drives = buffer;
-        } else {
-            if ((drive_helper->drives = malloc(sizeof(struct drive))) == NULL) {
-                logging(LOGGING_ERROR, "Failed to allocate memory for mount drive");
-                goto free_helper;
+            strcpy(drive->name, dir_entry->d_name);
+            logging(LOGGING_INFO, "Start reading mark file for systems of drive '%s'", drive->name);
+            if (drive_scan(drive, fp)) {
+                logging(LOGGING_INFO, "Finished scanning drive '%s'", drive->name);
+            } else {
+                logging(LOGGING_ERROR, "Failed to scanning drive '%s'", drive->name);
             }
+            fclose(fp);
         }
-        drive = drive_helper->drives + drive_helper->count_drives - 1;
-        drive->systems = NULL;
-        drive->count_systems = 0;
-        if ((drive->name = malloc((strlen(dir_entry->d_name)+1)*sizeof(char))) == NULL) {
-            logging(LOGGING_ERROR, "Failed to allocate memory for drive name when finishing scanning drive '%s'", dir_entry->d_name);
-            --(drive_helper->count_drives);
-            goto free_drives;
+        closedir(dir);
+        if (drive_helper) {
+            if (drive_helper->count_drives > 1) {
+                qsort(drive_helper->drives, drive_helper->count_drives, sizeof(struct drive), sort_compare_drive);
+                logging(LOGGING_DEBUG, "Sorted %d drives alphabetically", drive_helper->count_drives);
+            }
+            logging(LOGGING_INFO, "Finished scanning external drives");
+            return drive_helper;
         }
-        strcpy(drive->name, dir_entry->d_name);
-        if (drive_scan(drive, fp)) {
-            logging(LOGGING_INFO, "Finished scanning drive '%s'", drive->name);
-        } else {
-            logging(LOGGING_ERROR, "Failed to scanning drive '%s'", drive->name);
-        }
-        fclose(fp);
     }
-    closedir(dir);
-    if (drive_helper && drive_helper->count_drives > 1) {
-        qsort(drive_helper->drives, drive_helper->count_drives, sizeof(struct drive), sort_compare_drive);
-        logging(LOGGING_DEBUG, "Sorted %d drives alphabetically", drive_helper->count_drives);
-    }
-    return drive_helper;
+    logging(LOGGING_WARNING, "No external rom drives found");
+    return NULL;
 
 free_drives:
     unsigned int i, j;
