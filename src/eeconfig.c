@@ -85,7 +85,9 @@ char *eeconfig_get_string(const char *key) {
             return NULL;
         }
         strncpy(value, line_value, len_value);
+        value[len_value] = '\0';
     }
+    logging(LOGGING_DEBUG, "Read eeconfig '%s' value string '%s'", key, value);
     return value;
 }
 
@@ -117,7 +119,9 @@ int eeconfig_get_int(const char *key) {
     }
     char *ptr;
     long long_value = strtol(value, &ptr, 10);
+    logging(LOGGING_DEBUG, "Converting eeconfig option '%s' value string '%s' to integer %ld", key, value, long_value);
     if (long_value > INT_MAX) {
+        logging(LOGGING_DEBUG, "Integer %d capped at %d as it is too big", long_value, INT_MAX);
         return INT_MAX;
     } else {
         return (int)long_value;

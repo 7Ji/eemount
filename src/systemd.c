@@ -59,19 +59,22 @@ bool systemd_is_active(char *path) {
 
 static char *systemd_system_from_name(const char *name) {
     size_t len = strlen(name);
-    // char *name_dup = strdup(name);
-    // if (name_dup == NULL) {
-    //     return NULL;
-    // }
     char *system;
-    size_t len_system = len - len_systemd_mount_root - len_systemd_suffix;
+    if (len == 18) { // Special case for storage-roms.mount
+        if ((system = malloc(sizeof(char))) == NULL) {
+            logging(LOGGING_ERROR, "Can not allocate memory for system name when scanning systemd units");
+            return NULL;
+        }
+        system[0] = '\0';
+        return system;
+    }
+    size_t len_system = len - len_systemd_mount_root - len_systemd_suffix - 1;
     if ((system = malloc((len_system + 1)*sizeof(char))) == NULL) {
         logging(LOGGING_ERROR, "Can not allocate memory for system name when scanning systemd units");
         return NULL;
     }
-    // name_dup[len-len_systemd_suffix] = '\0';
-    strncpy(system, name + len_systemd_mount_root, len_system);
-    // free(name_dup);
+    strncpy(system, name + len_systemd_mount_root + 1, len_system);
+    system[len_system] = '\0';
     return system;
 }
 void systemd_mount_free(struct systemd_mount *mount) {

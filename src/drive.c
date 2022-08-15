@@ -71,12 +71,13 @@ static bool drive_scan(struct drive *drive, FILE *fp) {
             logging(LOGGING_ERROR, "Can not create/resize systems array when scanning drive '%s'", drive->name);
             return false;
         }
-        system = &(drive->systems[drive->count_systems-1]);
-        if ((*system = calloc(len_line + 1, sizeof(char))) == NULL) {
+        system = (drive->systems) + (drive->count_systems) - 1;
+        if ((*system = malloc((len_line + 1)*sizeof(char))) == NULL) {
             logging(LOGGING_ERROR, "Failed to re-allocate memory for new system name '%s' when scanning drive '%s'", line, drive->name);
             return false;
         } 
         strncpy(*system, line, len_line);
+        system[len_line] = '\0';
         logging(LOGGING_DEBUG, "Drive '%s': Found system '%s'", drive->name, *system);
     }
     free(line);
