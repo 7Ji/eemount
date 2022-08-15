@@ -33,4 +33,14 @@ void systemd_release();
 */
 bool systemd_is_active(char *path);
 
-char **systemd_list_service();
+struct systemd_mount {
+    char *name;
+    char *path;
+};
+
+struct systemd_mount_helper {
+    struct systemd_mount *mounts;
+    unsigned int count;
+};
+
+struct systemd_mount_helper *systemd_list_service();

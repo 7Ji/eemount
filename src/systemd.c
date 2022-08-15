@@ -1,5 +1,6 @@
 #include "systemd.h"
 #include "logging.h"
+#include "alloc.h"
 
 #define SYSTEMD_DESTINATION         "org.freedesktop.systemd1"
 #define SYSTEMD_INTERFACE_UNIT      SYSTEMD_DESTINATION".Unit"
@@ -49,42 +50,106 @@ bool systemd_is_active(char *path) {
     }
 }
 
-char **systemd_list_service() {
-    sd_bus_error err = SD_BUS_ERROR_NULL;
-    sd_bus_message *rep = NULL;
-    // char *msg = NULL;
-    if (sd_bus_call_method(systemd_bus, SYSTEMD_DESTINATION, SYSTEMD_PATH, SYSTEMD_INTERFACE_MANAGER, "ListUnits", &err, &rep, NULL) < 0) {
-        logging(LOGGING_ERROR, "Failed to list units: %s", err.message);
+struct systemd_mount_helper *systemd_list_service() {
+    sd_bus_message *method = NULL;
+    if (sd_bus_message_new_method_call(systemd_bus, &method, SYSTEMD_DESTINATION, SYSTEMD_PATH, SYSTEMD_INTERFACE_MANAGER, "ListUnitsByPatterns") < 0) {
+        logging(LOGGING_ERROR, "Failed to initiallize systemd method call");
         return NULL;
     }
-    if (sd_bus_message_enter_container(rep, SD_BUS_TYPE_ARRAY, "(ssssssouso)") < 0) {
+    char *active_states[] = {
+        "activating",
+        "active",
+        "reloading",
+        "deactivating",
+        NULL
+    };
+    char *patterns[] = {
+        "srv-netshare*.mount"
+    };
+    if (sd_bus_message_append_strv(method, active_states) < 0 || sd_bus_message_append_strv(method, patterns) < 0) {
+        logging(LOGGING_ERROR, "Failed to append message");
+        return NULL;
+    }
+    sd_bus_error error = SD_BUS_ERROR_NULL;
+    sd_bus_message *reply = NULL;
+    if (sd_bus_call(systemd_bus, method, 0, &error, &reply) < 0) {
+        logging(LOGGING_ERROR, "Failed to call systemd bus method, Error: %s (%s)", error.name, error.message);
+        return NULL;
+    }
+    if (sd_bus_message_unref(method)) {
+        logging(LOGGING_ERROR, "Failed to clean up systemd bus call method");
+    }
+    sd_bus_error_free(&error);
+    if (sd_bus_message_enter_container(reply, SD_BUS_TYPE_ARRAY, "(ssssssouso)") < 0) {
         logging(LOGGING_ERROR, "Failed to enter returned unit list");
-        return NULL;
+        goto free_reply;
     }
-    int r;
-    for (;;) {
-        const char *s1 = NULL;
-        const char *s2 = NULL;
-        const char *s3 = NULL;
-        const char *s4 = NULL;
-        const char *s5 = NULL;
-        const char *s6 = NULL;
-        const char *s7 = NULL;
-        const uint32_t u8 = 0;
-        const char *s9 = NULL;
-        const char *s10 = NULL;
-        r = sd_bus_message_read(rep, "(ssssssouso)", &s1, &s2, &s3, &s4, &s5, &s6, &s7, &u8, &s9, &s10);
-        if (r<0) {
+    struct systemd_mount_helper *mounts_helper = NULL;
+    int r, len;
+    struct systemd_mount *mount, *buffer;
+    const char *name = NULL;
+    const char *path = NULL;
+    while(true) {
+        r = sd_bus_message_read(reply, "(ssssssouso)", &name, NULL, NULL, NULL, NULL, NULL, &path, NULL, NULL, NULL);
+        if (r < 0) {
             logging(LOGGING_ERROR, "Error encountered when trying to list units");
-            return NULL;
+            goto free_container;
         }
-        if (r==0) {
+        if (r == 0) {
             break;
         }
-        puts("----------------------------------------");
-        printf("Service name: %s\nDescription: %s\nLoadState: %s\nActiveState: %s\nSubState: %s\nFollowing: %s\nObjectPath: %s\nQueued job ID (0 for none): %"PRIu32"\nJobType: %s\nJob Object Path:%s\n", s1, s2, s3, s4, s5, s6, s7, u8, s9, s10);
-        puts("----------------------------------------");
+        if (mounts_helper == NULL) {
+            if ((mounts_helper = malloc(sizeof(struct systemd_mount_helper))) == NULL) {
+                logging(LOGGING_ERROR, "Failed to allocate memory for systemd mounts helper");
+                goto free_container;
+            }
+            mounts_helper->mounts = NULL;
+            mounts_helper->count = 0;
+        }
+        if (++(mounts_helper->count) > 1) {
+            if ((buffer = realloc(mounts_helper->mounts, sizeof(struct systemd_mount)*(mounts_helper->count))) == NULL) {
+                --(mounts_helper->count);
+                logging(LOGGING_ERROR, "Failed to allocate memory for systemd mounts");
+                goto free_mounts;
+            }
+            mounts_helper->mounts = buffer;
+        } else {
+            if ((mounts_helper->mounts = malloc(sizeof(struct systemd_mount))) == NULL) {
+                logging(LOGGING_ERROR, "Failed to allocate memory for systemd mounts");
+                goto free_container;
+            }
+        }
+        mount = mounts_helper->mounts + mounts_helper->count - 1;
+        len = strlen(name);
+        if ((mount->name = malloc((len+1)*sizeof(char))) == NULL) {
+            logging(LOGGING_ERROR, "Failed to allocate memory for systemd mounts");
+            goto free_mounts;
+        }
+        strcpy(mount->name, name);
+        len = strlen(path);
+        if ((mount->path = malloc((len+1)*sizeof(char))) == NULL) {
+            free(mount->name);
+            --(mounts_helper->count);
+            logging(LOGGING_ERROR, "Failed to allocate memory for systemd mounts");
+            goto free_mounts;
+        }
+        strcpy(mount->path, path);
     }
+    sd_bus_message_close_container(reply);
+    sd_bus_message_unref(reply);
+    return mounts_helper;
+
+free_mounts:
+    for (unsigned int i=0; i<mounts_helper->count; ++i) {
+        free((mounts_helper->mounts+i)->name);
+        free((mounts_helper->mounts+i)->path);
+    }
+    free(mounts_helper->mounts);
+    free(mounts_helper);
+free_container:
+    sd_bus_message_exit_container(reply);
+free_reply:
+    sd_bus_message_unref(reply);
     return NULL;
 }
 // bool systemd_start_unit() {

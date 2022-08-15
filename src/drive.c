@@ -100,7 +100,7 @@ void drive_helper_free(struct drive_helper **drive_helper) {
 struct drive_helper *drive_get_list() {
     DIR *dir;
     struct dirent *dir_entry;
-    struct drive *drive;
+    struct drive *drive, *buffer;
     struct drive_helper *drive_helper = NULL;
     FILE *fp;
     int delay = eeconfig_get_int(MOUNT_EECONFIG_DELAY);
@@ -122,30 +122,31 @@ struct drive_helper *drive_get_list() {
             logging(LOGGING_INFO, "Start scanning drive '%s'", dir_entry->d_name);
             if ((drive_helper = malloc(sizeof(struct drive_helper))) == NULL) {
                 logging(LOGGING_ERROR, "Failed to allocate memory for mount drive helper");
-                fclose(fp);
-                closedir(dir);
-                return NULL;
+                goto free_file;
             }
             drive_helper->drives = NULL;
             drive_helper->count_drives = 0;
         }
-        if ((drive_helper->drives = alloc_optional_resize(drive_helper->drives, sizeof(struct drive)*++(drive_helper->count_drives))) == NULL) {
-            logging(LOGGING_ERROR, "Can not create/resize drives array when trying to allocate memory for %d drives", drive_helper->count_drives);
-            fclose(fp);
-            closedir(dir);
-            --(drive_helper->count_drives);
-            drive_helper_free(&drive_helper);
-            return NULL;
+        if (++(drive_helper->count_drives) > 1) {
+            if ((buffer = realloc(drive_helper->drives, sizeof(struct drive)*(drive_helper->count_drives))) == NULL) {
+                logging(LOGGING_ERROR, "Failed to allocate memory for mount drive");
+                --(drive_helper->count_drives);
+                goto free_drives;
+            }
+            drive_helper->drives = buffer;
+        } else {
+            if ((drive_helper->drives = malloc(sizeof(struct drive))) == NULL) {
+                logging(LOGGING_ERROR, "Failed to allocate memory for mount drive");
+                goto free_helper;
+            }
         }
-        drive = &(drive_helper->drives[(drive_helper->count_drives)-1]);
+        drive = drive_helper->drives + drive_helper->count_drives - 1;
         drive->systems = NULL;
         drive->count_systems = 0;
         if ((drive->name = malloc((strlen(dir_entry->d_name)+1)*sizeof(char))) == NULL) {
             logging(LOGGING_ERROR, "Failed to allocate memory for drive name when finishing scanning drive '%s'", dir_entry->d_name);
-            fclose(fp);
-            closedir(dir);
-            drive_helper_free(&drive_helper);
-            return NULL;
+            --(drive_helper->count_drives);
+            goto free_drives;
         }
         strcpy(drive->name, dir_entry->d_name);
         if (drive_scan(drive, fp)) {
@@ -161,4 +162,21 @@ struct drive_helper *drive_get_list() {
         logging(LOGGING_DEBUG, "Sorted %d drives alphabetically", drive_helper->count_drives);
     }
     return drive_helper;
+
+free_drives:
+    unsigned int i, j;
+    for (i=0; i<drive_helper->count_drives; ++i) {
+        for (j=0; j<((drive_helper->drives)+i)->count_systems; ++j) {
+            free(((drive_helper->drives)+i)->systems[j]);
+        }
+        free(((drive_helper->drives)+i)->name);
+        free(((drive_helper->drives)+i)->systems);
+    }
+    free(drive_helper->drives);
+free_helper:
+    free(drive_helper);
+free_file:
+    fclose(fp);
+    closedir(dir);
+    return NULL;
 }
