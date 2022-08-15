@@ -46,3 +46,5 @@ struct systemd_mount_helper {
 };
 
 struct systemd_mount_helper *systemd_get_mounts();
+
+void systemd_mount_helper_free (struct systemd_mount_helper **mounts_helper);

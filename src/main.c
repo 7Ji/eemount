@@ -21,28 +21,46 @@ int main() {
 }
 #endif
 
+#define PRINT_ONLY
 #include "drive.h"
 #include "eeconfig.h"
 #include "logging.h"
 #include "systemd.h"
 int main() {
-    // if (!systemd_init_bus()) {
     if (!systemd_init_bus() || !eeconfig_initialize()) {
         logging(LOGGING_FATAL, "Failed to initialize");
         return 1;
     }
-    // char *systemd_path;
-    // if (systemd_encode_path("storage-roms.mount", &systemd_path)) {
-    //     puts(systemd_path);
-    // }
+    bool root_mounted = false;
     struct systemd_mount_helper *systemd_helper = systemd_get_mounts();
+#ifndef PRINT_ONLY
     if (systemd_helper) {
-        for (unsigned int i = 0; i<systemd_helper->count; ++i) {
-            printf("system: %s\nname: %s\npath:%s\n------\n", systemd_helper->mounts[i].system, systemd_helper->mounts[i].name, systemd_helper->mounts[i].path);
+        if (systemd_helper->root) {
+            logging(LOGGING_INFO, "Using systemd unit '%s' as mount handler for /storage/roms", systemd_helper->root->name);
+            systemd_start(systemd_helper->root->path);
+            root_mounted = true;
         }
     }
-    unsigned int i,j;
+#endif
+    unsigned int i;
     struct drive_helper *list = drive_get_mounts();
+#ifndef PRINT_ONLY
+    if (list && !root_mounted) {
+        for (i=0; i<list->count_drives; ++i) {
+            if (list->drives[i].count_systems == 0) {
+                logging(LOGGING_INFO, "Mounting roms under external drive '%s' to /storage/roms", list->drives[i].name);
+                drive_mount(list->drives[i].name);
+                root_mounted = true;
+                break;
+            }
+        }
+    }
+    if (!root_mounted) {
+        logging(LOGGING_WARNING, "Neither systemd unit nor external drive mount for /storage/roms is found, mounting EEROMS");
+        mount_eeroms();
+    }
+#endif
+    unsigned int j;
     if (list) {
         for (i=0; i<list->count_drives; ++i) {
             printf("DRIVE %d / %d: ", i+1, list->count_drives);
@@ -54,6 +72,14 @@ int main() {
         }
         drive_helper_free(&list);
     }
+
+    if (systemd_helper) {
+        for (i = 0; i<systemd_helper->count; ++i) {
+            printf("system: %s\nname: %s\npath:%s\n------\n", systemd_helper->mounts[i].system, systemd_helper->mounts[i].name, systemd_helper->mounts[i].path);
+        }
+        systemd_mount_helper_free(systemd_helper);
+    }
+
     systemd_release();
     eeconfig_close();
     return 0;
