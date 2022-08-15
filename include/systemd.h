@@ -36,10 +36,12 @@ bool systemd_is_active(char *path);
 struct systemd_mount {
     char *name;
     char *path;
+    char *system; // When this is null, it means /storage/roms itself
 };
 
 struct systemd_mount_helper {
     struct systemd_mount *mounts;
+    struct systemd_mount *root; // /storage/roms itself
     unsigned int count;
 };
 

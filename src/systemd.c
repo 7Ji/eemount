@@ -7,6 +7,11 @@
 #define SYSTEMD_INTERFACE_MANAGER   SYSTEMD_DESTINATION".Manager"
 #define SYSTEMD_PATH                "/org/freedesktop/systemd1"
 #define SYSTEMD_PATH_UNIT           SYSTEMD_PATH"/unit"
+#define SYSTEMD_MOUNT_ROOT          "storage-roms"
+#define SYSTEMD_MOUNT_SUFFIX        ".mount"
+#define SYSTEMD_MOUNT_PATTERN       SYSTEMD_MOUNT_ROOT"*"SYSTEMD_MOUNT_SUFFIX
+#define SYSTEMD_MOUNT_ROOT_UNIT     SYSTEMD_MOUNT_ROOT SYSTEMD_MOUNT_SUFFIX
+
 
 /**
  The systemd bus we need to work on, you need to initialize it first before actual using it
@@ -64,7 +69,7 @@ struct systemd_mount_helper *systemd_list_service() {
         NULL
     };
     char *patterns[] = {
-        "srv-netshare*.mount"
+        SYSTEMD_MOUNT_PATTERN
     };
     if (sd_bus_message_append_strv(method, active_states) < 0 || sd_bus_message_append_strv(method, patterns) < 0) {
         logging(LOGGING_ERROR, "Failed to append message");
@@ -108,13 +113,13 @@ struct systemd_mount_helper *systemd_list_service() {
                 goto free_container;
             }
             mounts_helper->mounts = NULL;
+            mounts_helper->root = NULL;
             mounts_helper->count = 0;
         }
         if (++(mounts_helper->count) > 1) {
             if ((buffer = realloc(mounts_helper->mounts, sizeof(struct systemd_mount)*(mounts_helper->count))) == NULL) {
-                --(mounts_helper->count);
                 logging(LOGGING_ERROR, "Failed to allocate memory for systemd mounts");
-                goto free_mounts;
+                goto free_mount;
             }
             mounts_helper->mounts = buffer;
         } else {
@@ -124,17 +129,22 @@ struct systemd_mount_helper *systemd_list_service() {
             }
         }
         mount = mounts_helper->mounts + mounts_helper->count - 1;
+        if (!strcmp(name, SYSTEMD_MOUNT_ROOT_UNIT)) {
+            if (mounts_helper->root) {
+                logging(LOGGING_ERROR, "Two "SYSTEMD_MOUNT_ROOT_UNIT" units found, this should not happen");
+                goto free_mount;
+            }
+            mounts_helper->root = mount;
+        }
         if ((mount->name = malloc((len+1)*sizeof(char))) == NULL) {
             logging(LOGGING_ERROR, "Failed to allocate memory for systemd mounts");
-            goto free_mounts;
+            goto free_mount;
         }
         strcpy(mount->name, name);
         len = strlen(path);
         if ((mount->path = malloc((len+1)*sizeof(char))) == NULL) {
-            free(mount->name);
-            --(mounts_helper->count);
             logging(LOGGING_ERROR, "Failed to allocate memory for systemd mounts");
-            goto free_mounts;
+            goto free_name;
         }
         strcpy(mount->path, path);
     }
@@ -142,7 +152,10 @@ struct systemd_mount_helper *systemd_list_service() {
     sd_bus_message_unref(reply);
     return mounts_helper;
 
-free_mounts:
+free_name:
+    free(mount->name);
+free_mount:
+    --(mounts_helper->count);
     for (unsigned int i=0; i<mounts_helper->count; ++i) {
         free((mounts_helper->mounts+i)->name);
         free((mounts_helper->mounts+i)->path);
@@ -154,6 +167,10 @@ free_container:
 free_reply:
     sd_bus_message_unref(reply);
     return NULL;
+}
+
+void systemd_to_mount() {
+    
 }
 // bool systemd_start_unit() {
 //     sd_bus_call_method(systemd_bus, SYSTEMD_DESTINATION, )

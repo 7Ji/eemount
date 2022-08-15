@@ -27,23 +27,19 @@ int main() {
 #include "systemd.h"
 int main() {
     // if (!systemd_init_bus()) {
-    // // if (!systemd_init_bus() || !eeconfig_initialize()) {
-    //     logging(LOGGING_FATAL, "Failed to initialize");
-    //     return 1;
-    // }
+    if (!systemd_init_bus() || !eeconfig_initialize()) {
+        logging(LOGGING_FATAL, "Failed to initialize");
+        return 1;
+    }
     // char *systemd_path;
     // if (systemd_encode_path("storage-roms.mount", &systemd_path)) {
     //     puts(systemd_path);
     // }
-    // struct systemd_mount_helper *systemd_helper = systemd_list_service();
-    // if (systemd_helper) {
-    //     for (unsigned int i = 0; i<systemd_helper->count; ++i) {
-    //         printf("name: %s\npath:%s\n------\n", systemd_helper->mounts[i].name, systemd_helper->mounts[i].path);
-    //     }
-    // }
-
-    if (!eeconfig_initialize()) {
-        return 1;
+    struct systemd_mount_helper *systemd_helper = systemd_list_service();
+    if (systemd_helper) {
+        for (unsigned int i = 0; i<systemd_helper->count; ++i) {
+            printf("name: %s\npath:%s\n------\n", systemd_helper->mounts[i].name, systemd_helper->mounts[i].path);
+        }
     }
     unsigned int i,j;
     struct drive_helper *list = drive_get_list();
