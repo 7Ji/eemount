@@ -35,14 +35,14 @@ int main() {
     // if (systemd_encode_path("storage-roms.mount", &systemd_path)) {
     //     puts(systemd_path);
     // }
-    struct systemd_mount_helper *systemd_helper = systemd_list_service();
+    struct systemd_mount_helper *systemd_helper = systemd_get_mounts();
     if (systemd_helper) {
         for (unsigned int i = 0; i<systemd_helper->count; ++i) {
-            printf("name: %s\npath:%s\n------\n", systemd_helper->mounts[i].name, systemd_helper->mounts[i].path);
+            printf("system: %s\nname: %s\npath:%s\n------\n", systemd_helper->mounts[i].system, systemd_helper->mounts[i].name, systemd_helper->mounts[i].path);
         }
     }
     unsigned int i,j;
-    struct drive_helper *list = drive_get_list();
+    struct drive_helper *list = drive_get_mounts();
     if (list) {
         for (i=0; i<list->count_drives; ++i) {
             printf("DRIVE %d / %d: ", i+1, list->count_drives);

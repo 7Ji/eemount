@@ -21,4 +21,4 @@ struct drive_helper {
 };
 
 void drive_helper_free(struct drive_helper **drive_helper);
-struct drive_helper *drive_get_list();
+struct drive_helper *drive_get_mounts();

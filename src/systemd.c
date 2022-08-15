@@ -12,7 +12,8 @@
 #define SYSTEMD_MOUNT_PATTERN       SYSTEMD_MOUNT_ROOT"*"SYSTEMD_MOUNT_SUFFIX
 #define SYSTEMD_MOUNT_ROOT_UNIT     SYSTEMD_MOUNT_ROOT SYSTEMD_MOUNT_SUFFIX
 
-
+static const size_t len_systemd_mount_root = strlen(SYSTEMD_MOUNT_ROOT);
+static const size_t len_systemd_suffix = strlen(SYSTEMD_MOUNT_SUFFIX);
 /**
  The systemd bus we need to work on, you need to initialize it first before actual using it
 */
@@ -55,7 +56,34 @@ bool systemd_is_active(char *path) {
     }
 }
 
-struct systemd_mount_helper *systemd_list_service() {
+static char *systemd_system_from_name(const char *name) {
+    size_t len = strlen(name);
+    char name_dup[len+1];
+    strcpy(name_dup, name);
+    char *system;
+    if ((system = malloc((len-len_systemd_mount_root-len_systemd_suffix+1)*sizeof(char))) == NULL) {
+        logging(LOGGING_ERROR, "Can not allocate memory for system name when scanning systemd units");
+        return NULL;
+    }
+    name_dup[len-len_systemd_suffix] = '\0';
+    strcpy(system, name_dup + len_systemd_mount_root);
+    return system;
+}
+void systemd_mount_free(struct systemd_mount *mount) {
+    alloc_free_if_used((void**)&(mount->name));
+    alloc_free_if_used((void**)&(mount->system));
+    alloc_free_if_used((void**)&(mount->path));
+}
+
+void systemd_mount_helper_free (struct systemd_mount_helper **mounts_helper) {
+    for (unsigned int i=0; i<(*mounts_helper)->count; ++i) {
+        systemd_mount_free(((*mounts_helper)->mounts) + i);
+    }
+    alloc_free_if_used((void **)&((*mounts_helper)->mounts));
+    alloc_free_if_used((void **)mounts_helper);
+}
+
+struct systemd_mount_helper *systemd_get_mounts() {
     sd_bus_message *method = NULL;
     if (sd_bus_message_new_method_call(systemd_bus, &method, SYSTEMD_DESTINATION, SYSTEMD_PATH, SYSTEMD_INTERFACE_MANAGER, "ListUnitsByPatterns") < 0) {
         logging(LOGGING_ERROR, "Failed to initiallize systemd method call");
@@ -135,16 +163,21 @@ struct systemd_mount_helper *systemd_list_service() {
                 goto free_mount;
             }
             mounts_helper->root = mount;
+            mount->system = NULL;
         }
         if ((mount->name = malloc((len+1)*sizeof(char))) == NULL) {
             logging(LOGGING_ERROR, "Failed to allocate memory for systemd mounts");
             goto free_mount;
         }
+        if ((mount->system = systemd_system_from_name(name)) == NULL) {
+            logging(LOGGING_ERROR, "Failed to allocate memory for systemd mounts");
+            goto free_name;
+        }
         strcpy(mount->name, name);
         len = strlen(path);
         if ((mount->path = malloc((len+1)*sizeof(char))) == NULL) {
             logging(LOGGING_ERROR, "Failed to allocate memory for systemd mounts");
-            goto free_name;
+            goto free_system;
         }
         strcpy(mount->path, path);
     }
@@ -152,12 +185,15 @@ struct systemd_mount_helper *systemd_list_service() {
     sd_bus_message_unref(reply);
     return mounts_helper;
 
+free_system:
+    free(mount->system);
 free_name:
     free(mount->name);
 free_mount:
     --(mounts_helper->count);
     for (unsigned int i=0; i<mounts_helper->count; ++i) {
         free((mounts_helper->mounts+i)->name);
+        free((mounts_helper->mounts+i)->system);
         free((mounts_helper->mounts+i)->path);
     }
     free(mounts_helper->mounts);

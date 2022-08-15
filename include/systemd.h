@@ -45,4 +45,4 @@ struct systemd_mount_helper {
     unsigned int count;
 };
 
-struct systemd_mount_helper *systemd_list_service();
+struct systemd_mount_helper *systemd_get_mounts();

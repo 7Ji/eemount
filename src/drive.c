@@ -101,9 +101,10 @@ void drive_helper_free(struct drive_helper **drive_helper) {
         drive_free(((*drive_helper)->drives) + i);
     }
     alloc_free_if_used((void **)&((*drive_helper)->drives));
+    alloc_free_if_used((void**)drive_helper);
 }
 
-struct drive_helper *drive_get_list() {
+struct drive_helper *drive_get_mounts() {
     DIR *dir;
     struct dirent *dir_entry;
     struct drive *drive, *buffer;
