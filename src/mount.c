@@ -43,7 +43,7 @@ struct mount_system_helper *mount_get_systems(struct systemd_mount_helper *syste
     
 
 
-
+    return NULL;
 }
 
 void umount_drive() {
