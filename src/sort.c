@@ -15,3 +15,7 @@ int sort_compare_systemd_mount(const void *a, const void *b) {
     return strcmp(((struct systemd_mount *)a)->system, ((struct systemd_mount *)b)->system);
 #endif
 }
+
+int sort_compare_mount_system(const void *a, const void *b) {
+    return strcmp(((struct mount_system *)a)->system, ((struct mount_system *)b)->system);
+}

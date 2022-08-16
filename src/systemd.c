@@ -132,7 +132,7 @@ struct systemd_mount_helper *systemd_get_mounts() {
             mounts_helper->root = NULL;
             mounts_helper->count = 0;
         }
-        if (++(mounts_helper->count) > 1) {
+        if ((mounts_helper->count)++) {
             if ((buffer = realloc(mounts_helper->mounts, sizeof(struct systemd_mount)*(mounts_helper->count))) == NULL) {
                 logging(LOGGING_ERROR, "Failed to allocate memory for systemd mounts");
                 goto free_mount;

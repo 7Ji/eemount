@@ -26,6 +26,7 @@ int main() {
 #include "eeconfig.h"
 #include "logging.h"
 #include "systemd.h"
+#include "mount.h"
 int main() {
     if (!systemd_init_bus() || !eeconfig_initialize()) {
         logging(LOGGING_FATAL, "Failed to initialize");
@@ -61,6 +62,27 @@ int main() {
     }
 #endif
     unsigned int j;
+    struct mount_helper *mount_helper = mount_get_systems(systemd_helper, list);
+    if (mount_helper) {
+        struct mount_system *mount_system;
+        for (i=0; i<mount_helper->count; ++i) {
+            mount_system = mount_helper->systems + i;
+            printf("System '%s' is provided by ", mount_system->system);
+            switch (mount_system->type ) {
+                case MOUNT_SYSTEMD:
+                    printf("systemd unit '%s'\n", mount_system->systemd->name);
+                    break;
+                case MOUNT_DRIVE:
+                    printf("external drive '%s'\n", mount_system->drive->name);
+                    break;
+                default:
+                    printf("What? This can not be\n");
+                    break;
+            }
+        }
+    }
+
+
     if (list) {
         for (i=0; i<list->count; ++i) {
             printf("DRIVE %d / %d: ", i+1, list->count);

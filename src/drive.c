@@ -65,7 +65,7 @@ static bool drive_scan(struct drive *drive, FILE *fp) {
             return false;
         } 
         strncpy(*system, line, len_line);
-        system[len_line] = '\0';
+        (*system)[len_line] = '\0';
         logging(LOGGING_DEBUG, "Drive '%s': Found system '%s'", drive->name, *system);
     }
     free(line);
@@ -146,7 +146,7 @@ struct drive_helper *drive_get_mounts() {
                 drive_helper->drives = NULL;
                 drive_helper->count = 0;
             }
-            if (++(drive_helper->count) > 1) {
+            if ((drive_helper->count)++) {
                 if ((buffer = realloc(drive_helper->drives, sizeof(struct drive)*(drive_helper->count))) == NULL) {
                     logging(LOGGING_ERROR, "Failed to allocate memory for mount drive entry '%s'", dir_entry->d_name);
                     --(drive_helper->count);
