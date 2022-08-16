@@ -3,7 +3,6 @@
 #include "common.h"
 
 #include <stdbool.h>
-#include <systemd/sd-bus.h>
 
 /**
  Encode a unit name to sd-bus valid path

@@ -1,4 +1,4 @@
-#include "logging.h"
+#include "logging_p.h"
 
 const int logging_level = LOGGING_DEBUG;
 static const char logging_prefix_debug[] = "DEBUG";

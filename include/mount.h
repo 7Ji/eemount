@@ -2,8 +2,6 @@
 #define HAVE_MOUNT_H
 #include "common.h"
 
-#include <sys/mount.h>
-
 #include "systemd.h"
 #include "drive.h"
 

@@ -2,15 +2,6 @@
 #define HAVE_DRIVE_H
 #include "common.h"
 
-#include <stdbool.h>
-#include <string.h>
-#include <dirent.h>
-#include <errno.h>
-#include <assert.h>
-#include <unistd.h>
-
-#include <sys/stat.h>
-
 struct drive {
     char *name;
     char **systems;

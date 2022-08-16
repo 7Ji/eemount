@@ -1,5 +1,4 @@
-#include "mount.h"
-#include "logging.h"
+#include "mount_p.h"
 
 struct mount_system_helper *mount_get_systems(struct systemd_mount_helper *systemd_helper, struct drive_helper *drive_helper) {
     struct mount_system_helper *system_helper = malloc(sizeof(struct mount_system_helper));

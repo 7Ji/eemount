@@ -1,7 +1,4 @@
-#include "sort.h"
-#include "string.h"
-#include "drive.h"
-#include "systemd.h"
+#include "sort_p.h"
 
 int sort_compare_string(const void *a, const void *b){
     return strcmp(*(char**)a, *(char**)b);

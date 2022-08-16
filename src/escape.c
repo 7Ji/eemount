@@ -1,4 +1,4 @@
-#include "escape.h"
+#include "escape_p.h"
 
 bool escape_character(char character){
     if (('0'<=character && character<='9') ||

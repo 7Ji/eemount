@@ -1,10 +1,4 @@
-#include "eeconfig.h"
-#include "logging.h"
-#include "alloc.h"
-
-#define EECONFIG_DIR       "/storage/.config/emuelec/configs"
-#define EECONFIG_FILE      EECONFIG_DIR "/emuelec.conf"
-// #define EECONFIG_FILE "/tmp/emuelec.conf"
+#include "eeconfig_p.h"
 
 static FILE *eeconfig = NULL;
 
@@ -119,6 +113,7 @@ int eeconfig_get_int(const char *key) {
     char *ptr;
     long long_value = strtol(value, &ptr, 10);
     logging(LOGGING_DEBUG, "Converting eeconfig option '%s' value string '%s' to integer %ld", key, value, long_value);
+    free(value);
     if (long_value > INT_MAX) {
         logging(LOGGING_DEBUG, "Integer %d capped at %d as it is too big", long_value, INT_MAX);
         return INT_MAX;

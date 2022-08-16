@@ -2,10 +2,6 @@
 #define HAVE_LOGGING_H
 #include "common.h"
 
-
-#include <stdarg.h>
-#include <string.h>
-
 enum logging_levels {
     LOGGING_DEBUG,
     LOGGING_INFO,

@@ -3,7 +3,6 @@
 #include "common.h"
 
 #include <stdbool.h>
-#include <limits.h>
 
 bool eeconfig_initialize();
 void eeconfig_close();

@@ -2,7 +2,6 @@
 #define HAVE_ESCAPE_H
 #include "common.h"
 #include <stdbool.h>
-#include <string.h>
 
 /**
 Try to escape character

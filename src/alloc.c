@@ -1,5 +1,4 @@
-#include "alloc.h"
-#include "logging.h"
+#include "alloc_p.h"
 
 void *alloc_optional_resize(void *ptr, size_t size) {
     void *buffer;
