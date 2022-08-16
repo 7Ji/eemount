@@ -82,6 +82,7 @@ struct systemd_mount_helper *systemd_get_mounts() {
         "active",
         "reloading",
         "deactivating",
+        "inactive",
         NULL
     };
     char *patterns[] = {
