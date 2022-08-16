@@ -5,6 +5,20 @@
 #include "systemd.h"
 #include "drive.h"
 
+struct mount_info {
+    unsigned int mount_id;
+    unsigned int parent_id;
+    unsigned int major;
+    unsigned int minor;
+    char *root;
+    char *mountpoint;
+    char *options;
+    char *optional;
+    char *fstype;
+    char *mountsource;
+    char *superoptions;
+};
+
 /**
  * @brief The enum of mount types, systemd or drive
  * 
