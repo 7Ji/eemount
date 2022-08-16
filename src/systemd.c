@@ -1,12 +1,5 @@
 #include "systemd_p.h"
 
-static const size_t len_systemd_mount_root = strlen(SYSTEMD_MOUNT_ROOT);
-static const size_t len_systemd_suffix = strlen(SYSTEMD_MOUNT_SUFFIX);
-/**
- The systemd bus we need to work on, you need to initialize it first before actual using it
-*/
-static sd_bus *systemd_bus;
-
 bool systemd_encode_path(char *unit, char **path) {
     if (sd_bus_path_encode(SYSTEMD_PATH_UNIT, unit, path) < 0) {
         fprintf(stderr, "Failed to encode unit to sd-bus path\n");

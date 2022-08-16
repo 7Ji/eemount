@@ -1,14 +1,5 @@
 #include "logging_p.h"
 
-const int logging_level = LOGGING_DEBUG;
-static const char logging_prefix_debug[] = "DEBUG";
-static const char logging_prefix_info[] = "INFO";
-static const char logging_prefix_warning[] = "WARNING";
-static const char logging_prefix_error[] = "ERROR";
-static const char logging_prefix_fatal[] = "FATAL";
-
-static const char logging_prefix_missing[] = "MISSING";
-
 void logging(const int level, const char *format, ...) {
     if (level < logging_level) {
         return;

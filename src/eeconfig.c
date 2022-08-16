@@ -1,7 +1,5 @@
 #include "eeconfig_p.h"
 
-static FILE *eeconfig = NULL;
-
 bool eeconfig_initialize() {
     if ((eeconfig = fopen(EECONFIG_FILE, "r")) == NULL) {
         logging(LOGGING_ERROR, "Failed to open emuelec config file: '"EECONFIG_FILE"'");
@@ -83,22 +81,6 @@ char *eeconfig_get_string(const char *key) {
     logging(LOGGING_DEBUG, "Read eeconfig '%s' value string '%s'", key, value);
     return value;
 }
-
-static char *eeconfig_bool_true[]  = {
-    "yes",
-    "true",
-    "y",
-    "t",
-    "1"
-};
-
-static char *eeconfig_bool_false[] = {
-    "no",
-    "false",
-    "n",
-    "f",
-    "0"
-};
 
 int eeconfig_get_int(const char *key) {
     char *value = eeconfig_get_string(key);
