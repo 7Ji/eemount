@@ -97,12 +97,7 @@ int eeconfig_get_int(const char *key) {
     long long_value = strtol(value, &ptr, 10);
     logging(LOGGING_DEBUG, "Converting eeconfig option '%s' value string '%s' to integer %ld", key, value, long_value);
     free(value);
-    if (long_value > INT_MAX) {
-        logging(LOGGING_DEBUG, "Integer %d capped at %d as it is too big", long_value, INT_MAX);
-        return INT_MAX;
-    } else {
-        return (int)long_value;
-    }
+    return util_int_from_long(long_value);
 }
 
 bool eeconfig_get_bool(const char *key, const bool bool_default) {

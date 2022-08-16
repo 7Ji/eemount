@@ -28,6 +28,16 @@ int main() {
 #include "systemd.h"
 #include "mount.h"
 int main() {
+    struct mount_table *table = mount_get_table();
+    struct mount_info *info;
+    // if(table) {
+    //     for (unsigned int n=0; n<table->count; ++n) {
+    //         info = (table->entries + n);
+    //         puts(info->line);
+    //         printf("%u: Source: %s, Root: %s, Mountpoint: %s\n", n, info->mount_source, info->root, info->mount_point);
+    //     }
+    // }
+    return 0;
     if (!systemd_init_bus() || !eeconfig_initialize()) {
         logging(LOGGING_FATAL, "Failed to initialize");
         return 1;

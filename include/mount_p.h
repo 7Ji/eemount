@@ -5,3 +5,6 @@
 
 #include "logging.h"
 #include "sort.h"
+#include "util.h"
+
+#define MOUNT_MOUNTINFO     "/proc/self/mountinfo"

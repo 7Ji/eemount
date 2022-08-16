@@ -1,5 +1,132 @@
 #include "mount_p.h"
 
+
+// A few specific characters in mountinfo path entries (root and mountpoint)
+// are escaped using a backslash followed by a character's ascii code in octal.
+//
+//   space              -- as \040
+//   tab (aka \t)       -- as \011
+//   newline (aka \n)   -- as \012
+//   backslash (aka \\) -- as \134
+
+
+struct mount_table* mount_get_table() {
+    struct mount_table *table = malloc(sizeof(struct mount_table));
+    if (table == NULL) {
+        logging(LOGGING_ERROR, "Failed to allocate memory for mount table");
+        return NULL;
+    }
+    if ((table->entries = malloc(sizeof(struct mount_info)*16)) == NULL) {
+        logging(LOGGING_ERROR, "Failed to allocate memory for mount infos");
+        goto free_table;
+    }
+    table->count = 0;
+    table->alloc_entries = 16;
+    FILE *fp = fopen(MOUNT_MOUNTINFO, "r");
+    if (fp == NULL) {
+        logging(LOGGING_ERROR, "Failed to open '"MOUNT_MOUNTINFO"' to read mounted table");
+        goto free_entries;
+    }
+    char *line;
+    size_t size_line = 0;
+    size_t len_line;
+    char *token;
+    const char delim[] = " ";
+    unsigned int segments = 0;
+    struct mount_info *entry;
+    bool optional_end;
+    char *endptr;
+    /* An example line:
+    36 35 98:0 /mnt1 /mnt2 rw,noatime master:1 - ext3 /dev/root rw,errors=continue
+    */
+    while (getline(&line, &size_line, fp) != -1) {
+        if ((len_line = strcspn(line, "\r\n")) == 0) {
+            continue;
+        }
+        if (++(table->count) > table->alloc_entries) {
+            table->alloc_entries*=2;
+            if ((entry = realloc(table->entries, sizeof(struct mount_info)*(table->alloc_entries))) == NULL) { // Pure evilness, entry is just buffer here
+                logging(LOGGING_ERROR, "Failed to reallocate memory for table entries");
+                goto free_fp;
+            }
+            table->entries = entry;
+        }
+        entry = table->entries + (table->count-1);
+        if ((entry->line = strdup(line)) == NULL) {
+            logging(LOGGING_ERROR, "Failed to allocate memory for internal line of mount info");
+            goto free_fp;
+        }
+        // We do these on our dupped line, so we don't need to malloc all strings
+        optional_end = false;
+        entry->line[len_line] = '\0';
+        logging(LOGGING_DEBUG, "Processing mountinfo line: %s", entry->line);
+        token = strtok(entry->line, delim);
+        segments = 0;
+        while (token) {
+            switch(++segments) {
+                case 1: // mount ID
+                    entry->mount_id = util_uint_from_ulong(strtoul(token, &endptr, 10));
+                    logging(LOGGING_DEBUG, "Mount ID is %u", entry->mount_id);
+                    break;
+                case 2: // parent ID
+                    entry->parent_id = util_uint_from_ulong(strtoul(token, &endptr, 10));
+                    logging(LOGGING_DEBUG, "Parent ID is %u", entry->parent_id);
+                    break;
+                case 3: // major:minor
+                    entry->major_minor = token;
+                    logging(LOGGING_DEBUG, "Major:Minor pair is %s", token);
+                    break;
+                case 4: // root
+                    entry->root = token;
+                    logging(LOGGING_DEBUG, "Root is %s", token);
+                    break;
+                case 5: // mount point
+                    entry->mount_point = token;
+                    logging(LOGGING_DEBUG, "Mount Point is %s", token);
+                    break;
+                case 6: // mount options
+                    entry->mount_options = token;
+                    logging(LOGGING_DEBUG, "Mount Options are %s", token);
+                    break;
+                case 7:
+                    if (optional_end) {
+                        entry->fstype = token;
+                        logging(LOGGING_DEBUG, "Filesystem Type is %s", token);
+                    } else {
+                        if (!strcmp(token, "-")) {
+                            optional_end = true;
+                            logging(LOGGING_DEBUG, "Optional field ends");
+                        } else {
+                            logging(LOGGING_DEBUG, "Ignored optional field %s", token);
+                        }
+                        --segments;
+                    }
+                    break;
+                case 8:
+                    entry->mount_source = token;
+                    logging(LOGGING_DEBUG, "Mount Source is %s", token);
+                    break;
+                case 9:
+                    entry->super_options = token;
+                    logging(LOGGING_DEBUG, "Super Options are %s", token);
+                    break;
+                default:
+                    logging(LOGGING_ERROR, "More columns found in mountinfo than expected");
+                    break;
+            }
+            token = strtok(NULL, delim);
+        }
+    }
+    return table;
+free_fp:
+    fclose(fp);
+free_entries:
+    free(table->entries);
+free_table:
+    free(table);
+    return NULL;
+}
+
 static bool mount_systems_alloc_optional_resize(struct mount_helper *mount_helper) {
     struct mount_system *buffer;
     if (++(mount_helper->count) > mount_helper->alloc_systems) {

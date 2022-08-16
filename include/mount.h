@@ -10,13 +10,21 @@ struct mount_info {
     unsigned int parent_id;
     unsigned int major;
     unsigned int minor;
+    char *line;
+    char *major_minor;
     char *root;
-    char *mountpoint;
-    char *options;
+    char *mount_point;
+    char *mount_options;
     char *optional;
     char *fstype;
-    char *mountsource;
-    char *superoptions;
+    char *mount_source;
+    char *super_options;
+};
+
+struct mount_table {
+    struct mount_info *entries;
+    unsigned int count;
+    unsigned int alloc_entries;
 };
 
 /**
@@ -85,6 +93,7 @@ struct mount_helper {
     unsigned int alloc_systems;
 };
 
+struct mount_table* mount_get_table();
 /**
  * @brief Get a list of all systems and how they should be mounted
  * 

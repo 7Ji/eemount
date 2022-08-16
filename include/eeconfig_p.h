@@ -5,6 +5,7 @@
 
 #include "logging.h"
 #include "alloc.h"
+#include "util.h"
 
 #define EECONFIG_DIR       "/storage/.config/emuelec/configs"
 #define EECONFIG_FILE      EECONFIG_DIR "/emuelec.conf"
