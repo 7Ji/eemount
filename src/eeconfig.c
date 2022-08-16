@@ -62,6 +62,7 @@ char *eeconfig_get_string(const char *key) {
         }
         if (quote) {
             if (line[len_line-1] != quote) { // ' and " must come in pair
+                line[len_line] = '\0';
                 logging(LOGGING_WARNING, "Single quote and double quote not come in pair in emuelec config, please check you config file. Ignored Problematic line:\n%s", line);
                 continue;
             }

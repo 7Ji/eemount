@@ -170,7 +170,10 @@ struct systemd_mount_helper *systemd_get_mounts() {
     }
     sd_bus_message_close_container(reply);
     sd_bus_message_unref(reply);
-    qsort(mounts_helper->mounts, mounts_helper->count, sizeof(struct systemd_mount), sort_compare_systemd_mount);
+    if (mounts_helper) {
+        qsort(mounts_helper->mounts, mounts_helper->count, sizeof(struct systemd_mount), sort_compare_systemd_mount);
+        logging(LOGGING_DEBUG, "Sorted %d systemd mount units alphabetically", mounts_helper->count);
+    }
     return mounts_helper;
 
 free_system:
