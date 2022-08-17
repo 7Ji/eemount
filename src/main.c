@@ -1,3 +1,22 @@
+#ifndef MULTICALL
+#include "mount.h"
+int main() {
+    struct mount_table* table = mount_get_table();
+    struct mount_entry* info = mount_find_entry_by_mount_point("/srv/netshare/media", table);
+    if (info) {
+        printf("Mount ID %u: Source: %s\n", info->mount_id, info->mount_source);
+    }
+    // if (table) {
+    //     for (unsigned int i=0; i<table->count; ++i) {
+    //         info = table->entries + i;
+    //         printf("Source: %s, Filesystem: %s, Root: %s, Mountpoint: %s\n", info->mount_source,  info->fstype, info->root, info->mount_point);
+    //         if (info->mount_id == 355) {
+    //             mount_umount_entry(info);
+    //         }
+    //     }
+    // }
+}
+#else
 #define PRINT_ONLY
 #include "common.h"
 #include <string.h>
@@ -267,4 +286,5 @@ int main() {
     // systemd_release();
     return 0;
 }
+#endif
 #endif

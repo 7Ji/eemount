@@ -5,7 +5,7 @@
 #include "systemd.h"
 #include "drive.h"
 
-struct mount_info {
+struct mount_entry {
     unsigned int mount_id;
     unsigned int parent_id;
     unsigned int major;
@@ -22,7 +22,7 @@ struct mount_info {
 };
 
 struct mount_table {
-    struct mount_info *entries;
+    struct mount_entry *entries;
     unsigned int count;
     unsigned int alloc_entries;
 };
@@ -93,6 +93,8 @@ struct mount_helper {
     unsigned int alloc_systems;
 };
 
+struct mount_entry *mount_find_entry_by_mount_point(const char *mount_point, struct mount_table *table);
+bool mount_umount_entry(struct mount_entry *entry);
 struct mount_table* mount_get_table();
 /**
  * @brief Get a list of all systems and how they should be mounted
@@ -102,6 +104,5 @@ struct mount_table* mount_get_table();
  * @return struct mount_helper* A pointer to mount_helper struct
  */
 
-char *mount_unescape_mountinfo(char *escaped);
 struct mount_helper *mount_get_systems(struct systemd_mount_helper *systemd_helper, struct drive_helper *drive_helper);
 #endif

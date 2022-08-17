@@ -1,69 +1,33 @@
 #include "mount_p.h"
-
-
-// A few specific characters in mountinfo path entries (root and mountpoint)
-// are escaped using a backslash followed by a character's ascii code in octal.
-//
-//   space              -- as \040
-//   tab (aka \t)       -- as \011
-//   newline (aka \n)   -- as \012
-//   backslash (aka \\) -- as \134
-
-char *mount_unescape_mountinfo(char *escaped) {
-    size_t len = strlen(escaped);
-    char *raw = malloc((len+1)*sizeof(char));
-    if (raw == NULL) {
-        logging(LOGGING_ERROR, "Failed to allocate memory when unescaping mountinfo");
-        return NULL;
+bool mount_umount_entry(struct mount_entry *entry) {
+    if (umount2(entry->mount_point, MNT_FORCE)) {
+        logging(LOGGING_ERROR, "Failed to umount %s", entry->mount_point);
+        return false;
+    } else {
+        logging(LOGGING_INFO, "Successfully umounted %s", entry->mount_point);
+        return true;
     }
-    size_t diff = 0;
-    for (size_t i=0; i<len; ++i) {
-        if ((i<len-3) && (escaped[i] == '\\')) {
-            switch (escaped[i+1]) {
-                case '0':
-                    switch (escaped[i+2]) {
-                        case '1':
-                            switch (escaped[i+3]) {
-                                case '1':
-                                    // logging(LOGGING_DEBUG, "Special character tab found");
-                                    raw[i-diff] = '\t';
-                                    i+=3;
-                                    diff+=3;
-                                    continue;
-                                case '2':
-                                    // logging(LOGGING_DEBUG, "Special character new line found");
-                                    raw[i-diff] = '\n';
-                                    diff+=3;
-                                    i+=3;
-                                    continue;
-                            }
-                            break;
-                        case '4':
-                            if (escaped[i+3] == '0') {
-                                // logging(LOGGING_DEBUG, "Special character spcae found");
-                                raw[i-diff] = ' ';
-                                diff+=3;
-                                i+=3;
-                                continue;
-                            }
-                            break;
-                    }
-                    break;
-                case '1':
-                    if ((escaped[i+2] == '3') && (escaped[i+3] == '4')) {
-                        // logging(LOGGING_DEBUG, "Special character backslash found");
-                        raw[i-diff] = '\\';
-                        diff+=3;
-                        i+=3;
-                        continue;
-                    }
-                    break;
+}
+
+struct mount_entry *mount_find_entry_by_mount_point(const char *mount_point, struct mount_table *table) {
+    struct mount_entry *entry = NULL, *buffer;
+    for (unsigned i=0; i<table->count; ++i) {
+        buffer = table->entries + i;
+        if (!strcmp(mount_point, buffer->mount_point)) {
+            if (entry) {
+                logging(LOGGING_WARNING, "Multiple mount entries on mountpoint %s found, choosing the last one", mount_point);
             }
+            entry = buffer;
         }
-        raw[i-diff] = escaped[i];
     }
-    raw[len-diff] = '\0';
-    return raw;
+    return entry;
+}
+
+
+bool mount_umount_entry_recursive(struct mount_entry *entry, struct mount_table *table) {
+    table->count;
+
+
 }
 
 struct mount_table* mount_get_table() {
@@ -72,7 +36,7 @@ struct mount_table* mount_get_table() {
         logging(LOGGING_ERROR, "Failed to allocate memory for mount table");
         return NULL;
     }
-    if ((table->entries = malloc(sizeof(struct mount_info)*16)) == NULL) {
+    if ((table->entries = malloc(sizeof(struct mount_entry)*16)) == NULL) {
         logging(LOGGING_ERROR, "Failed to allocate memory for mount infos");
         goto free_table;
     }
@@ -89,7 +53,7 @@ struct mount_table* mount_get_table() {
     char *token;
     const char delim[] = " ";
     unsigned int segments = 0;
-    struct mount_info *entry;
+    struct mount_entry *entry;
     bool optional_end;
     char *endptr;
     /* An example line:
@@ -101,7 +65,7 @@ struct mount_table* mount_get_table() {
         }
         if (++(table->count) > table->alloc_entries) {
             table->alloc_entries*=ALLOC_MULTIPLIER;
-            if ((entry = realloc(table->entries, sizeof(struct mount_info)*(table->alloc_entries))) == NULL) { // Pure evilness, entry is just buffer here
+            if ((entry = realloc(table->entries, sizeof(struct mount_entry)*(table->alloc_entries))) == NULL) { // Pure evilness, entry is just buffer here
                 logging(LOGGING_ERROR, "Failed to reallocate memory for table entries");
                 goto free_fp;
             }
@@ -134,10 +98,12 @@ struct mount_table* mount_get_table() {
                     break;
                 case 4: // root
                     entry->root = token;
+                    util_unesacpe_mountinfo_in_place(entry->root);
                     // logging(LOGGING_DEBUG, "Root is %s", token);
                     break;
                 case 5: // mount point
                     entry->mount_point = token;
+                    util_unesacpe_mountinfo_in_place(entry->mount_point);
                     // logging(LOGGING_DEBUG, "Mount Point is %s", token);
                     break;
                 case 6: // mount options

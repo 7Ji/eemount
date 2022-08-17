@@ -1,4 +1,4 @@
-BINARY = ee_busybox
+BINARY = mount_romfs
 DIR_INCLUDE = include
 DIR_SOURCE = src
 DIR_OBJECT = obj
