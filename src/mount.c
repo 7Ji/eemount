@@ -21,7 +21,7 @@ struct mount_table* mount_get_table() {
         goto free_table;
     }
     table->count = 0;
-    table->alloc_entries = 16;
+    table->alloc_entries = ALLOC_BASE_SIZE;
     FILE *fp = fopen(MOUNT_MOUNTINFO, "r");
     if (fp == NULL) {
         logging(LOGGING_ERROR, "Failed to open '"MOUNT_MOUNTINFO"' to read mounted table");
@@ -44,7 +44,7 @@ struct mount_table* mount_get_table() {
             continue;
         }
         if (++(table->count) > table->alloc_entries) {
-            table->alloc_entries*=2;
+            table->alloc_entries*=ALLOC_MULTIPLIER;
             if ((entry = realloc(table->entries, sizeof(struct mount_info)*(table->alloc_entries))) == NULL) { // Pure evilness, entry is just buffer here
                 logging(LOGGING_ERROR, "Failed to reallocate memory for table entries");
                 goto free_fp;
@@ -131,11 +131,11 @@ static bool mount_systems_alloc_optional_resize(struct mount_helper *mount_helpe
     struct mount_system *buffer;
     if (++(mount_helper->count) > mount_helper->alloc_systems) {
         if (mount_helper->alloc_systems) {
-            mount_helper->alloc_systems *= 2;
+            mount_helper->alloc_systems *= ALLOC_MULTIPLIER;
             buffer = realloc(mount_helper->systems, sizeof(struct mount_system)*mount_helper->alloc_systems);
         } else {
-            mount_helper->alloc_systems = 16;
-            buffer = malloc(sizeof(struct mount_system)*16);
+            mount_helper->alloc_systems = ALLOC_BASE_SIZE;
+            buffer = malloc(sizeof(struct mount_system)*ALLOC_BASE_SIZE);
         }
         if (buffer) {
             mount_helper->systems = buffer;

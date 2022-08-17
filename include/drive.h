@@ -12,8 +12,13 @@ struct drive {
      * 
      */
     char *name;
+    // /**
+    //  * @brief The content of the drive mark file
+    //  * 
+    //  */
+    // char *content;
     /**
-     * @brief The names array of systems under the drive, NULL if no system is found (the drive should be used as a whole)
+     * @brief The names array of systems under the drive, NULL if no system is found (the drive should be used as a whole). The array itself is malloced, but the char* in them points to the area in content;
      * 
      */
     char **systems;
@@ -22,6 +27,12 @@ struct drive {
      * 
      */
     unsigned int count;
+
+    /**
+     * @brief The allocated count of systems
+     * 
+     */
+    unsigned int alloc_systems;
 };
 
 /**
@@ -39,6 +50,12 @@ struct drive_helper {
      * 
      */
     unsigned int count;
+
+    /**
+     * @brief The allocated count of drives
+     * 
+     */
+    unsigned int alloc_drives;
 };
 
 /**

@@ -29,7 +29,8 @@ int main() {
 #include "mount.h"
 int main() {
     struct mount_table *table = mount_get_table();
-    struct mount_info *info;
+    // struct mount_info *info;
+    free(table);
     // if(table) {
     //     for (unsigned int n=0; n<table->count; ++n) {
     //         info = (table->entries + n);

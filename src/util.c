@@ -19,3 +19,23 @@ int util_int_from_long(long value) {
     }
     return value;
 }
+
+long util_file_get_length(FILE *fp) {
+    fseek(fp, 0, SEEK_END);
+    return ftell(fp);
+}
+
+long util_file_get_length_and_rollback(FILE *fp) {
+    long mark = ftell(fp);
+    fseek(fp, 0, SEEK_END);
+    long length = ftell(fp);
+    fseek(fp, mark, SEEK_SET);
+    return length;
+}
+
+long util_file_get_length_and_restart(FILE *fp) {
+    fseek(fp, 0, SEEK_END);
+    long length = ftell(fp);
+    fseek(fp, 0, SEEK_SET);
+    return length;
+}

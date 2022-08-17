@@ -12,6 +12,7 @@
 #include "logging.h"
 #include "sort.h"
 #include "eeconfig.h"
+#include "util.h"
 
 #define MOUNT_EXT_PARENT        "/var/media"
 #define MOUNT_EXT_ROMS_PARENT   "roms"

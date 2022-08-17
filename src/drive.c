@@ -38,7 +38,7 @@ static FILE *drive_check(const char *drive) {
 }
 
 static bool drive_scan(struct drive *drive, FILE *fp) {
-    char *line, **system;
+    char *line, **system, **buffer;
     bool note_empty = false;
     size_t size_line = 0;
     size_t len_line;
@@ -55,19 +55,34 @@ static bool drive_scan(struct drive *drive, FILE *fp) {
             logging(LOGGING_WARNING, "Line ignored as it is too long, please fix the mark file for drive '%s' and fix the following line: %s", drive->name, line);
             continue;
         }
-        if ((drive->systems = alloc_optional_resize(drive->systems, sizeof(char*)*(++(drive->count)))) == NULL) {
-            logging(LOGGING_ERROR, "Can not create/resize systems array when scanning drive '%s'", drive->name);
-            return false;
+        if ((++(drive->count)) > drive->alloc_systems) {
+            if (drive->alloc_systems) {
+                (drive->alloc_systems) *= ALLOC_MULTIPLIER;
+                buffer = realloc(drive->systems, sizeof(char*)*(drive->alloc_systems));
+
+            } else {
+                drive->alloc_systems = ALLOC_BASE_SIZE;
+                buffer = malloc(sizeof(char*)*ALLOC_BASE_SIZE);
+            }
+            if (buffer) {
+                drive->systems = buffer;
+            } else {
+                --(drive->count);
+                logging(LOGGING_ERROR, "Can not create/resize systems array when scanning drive '%s'", drive->name);
+                goto free_systems;
+            }
         }
         system = (drive->systems) + (drive->count) - 1;
         if ((*system = malloc((len_line + 1)*sizeof(char))) == NULL) {
-            logging(LOGGING_ERROR, "Failed to re-allocate memory for new system name '%s' when scanning drive '%s'", line, drive->name);
-            return false;
+            --(drive->count);
+            logging(LOGGING_ERROR, "Failed to allocate memory for new system name '%s' when scanning drive '%s'", line, drive->name);
+            goto free_systems;
         } 
         strncpy(*system, line, len_line);
         (*system)[len_line] = '\0';
         logging(LOGGING_DEBUG, "Drive '%s': Found system '%s'", drive->name, *system);
     }
+
     free(line);
     logging(LOGGING_DEBUG, "Drive '%s': Found %d system(s)", drive->name, drive->count);
     if (drive->count > 1) {
@@ -75,6 +90,13 @@ static bool drive_scan(struct drive *drive, FILE *fp) {
         logging(LOGGING_DEBUG, "Sorted %d systems alphabetically of drive '%s'", drive->count, drive->name);
     }
     return true;
+
+free_systems:
+    for (unsigned int i=0; i<drive->count; ++i) {
+        free(drive->systems[i]);
+    }
+    free(drive->systems);
+    return false;
 }
 
 static void drive_free(struct drive *drive) {
@@ -145,23 +167,28 @@ struct drive_helper *drive_get_mounts() {
                 }
                 drive_helper->drives = NULL;
                 drive_helper->count = 0;
+                drive_helper->alloc_drives = 0;
             }
-            if ((drive_helper->count)++) {
-                if ((buffer = realloc(drive_helper->drives, sizeof(struct drive)*(drive_helper->count))) == NULL) {
+            if ((++(drive_helper->count)) > drive_helper->alloc_drives) {
+                if (drive_helper->alloc_drives) {
+                    drive_helper->alloc_drives *= ALLOC_MULTIPLIER;
+                    buffer = realloc(drive_helper->drives, sizeof(struct drive)*(drive_helper->alloc_drives));
+                } else {
+                    drive_helper->alloc_drives = ALLOC_BASE_SIZE;
+                    buffer = malloc(sizeof(struct drive)*ALLOC_BASE_SIZE);
+                }
+                if (buffer) {
+                    drive_helper->drives = buffer;
+                } else {
                     logging(LOGGING_ERROR, "Failed to allocate memory for mount drive entry '%s'", dir_entry->d_name);
                     --(drive_helper->count);
                     goto free_drives;
-                }
-                drive_helper->drives = buffer;
-            } else {
-                if ((drive_helper->drives = malloc(sizeof(struct drive))) == NULL) {
-                    logging(LOGGING_ERROR, "Failed to allocate memory for mount drive entry '%s'", dir_entry->d_name);
-                    goto free_helper;
                 }
             }
             drive = drive_helper->drives + drive_helper->count - 1;
             drive->systems = NULL;
             drive->count = 0;
+            drive->alloc_systems = 0;
             if ((drive->name = strdup(dir_entry->d_name)) == NULL) {
                 logging(LOGGING_ERROR, "Failed to allocate memory for drive name of drive '%s'", dir_entry->d_name);
                 --(drive_helper->count);
@@ -191,6 +218,7 @@ struct drive_helper *drive_get_mounts() {
 free_drives:
     unsigned int i, j;
     for (i=0; i<drive_helper->count; ++i) {
+        // free(((drive_helper->drives)+i)->content);
         for (j=0; j<((drive_helper->drives)+i)->count; ++j) {
             free(((drive_helper->drives)+i)->systems[j]);
         }
@@ -198,7 +226,7 @@ free_drives:
         free(((drive_helper->drives)+i)->systems);
     }
     free(drive_helper->drives);
-free_helper:
+// free_helper:
     free(drive_helper);
 free_file:
     fclose(fp);
