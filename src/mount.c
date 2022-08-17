@@ -66,52 +66,52 @@ struct mount_table* mount_get_table() {
             switch(++segments) {
                 case 1: // mount ID
                     entry->mount_id = util_uint_from_ulong(strtoul(token, &endptr, 10));
-                    logging(LOGGING_DEBUG, "Mount ID is %u", entry->mount_id);
+                    // logging(LOGGING_DEBUG, "Mount ID is %u", entry->mount_id);
                     break;
                 case 2: // parent ID
                     entry->parent_id = util_uint_from_ulong(strtoul(token, &endptr, 10));
-                    logging(LOGGING_DEBUG, "Parent ID is %u", entry->parent_id);
+                    // logging(LOGGING_DEBUG, "Parent ID is %u", entry->parent_id);
                     break;
                 case 3: // major:minor
                     entry->major_minor = token;
-                    logging(LOGGING_DEBUG, "Major:Minor pair is %s", token);
+                    // logging(LOGGING_DEBUG, "Major:Minor pair is %s", token);
                     break;
                 case 4: // root
                     entry->root = token;
-                    logging(LOGGING_DEBUG, "Root is %s", token);
+                    // logging(LOGGING_DEBUG, "Root is %s", token);
                     break;
                 case 5: // mount point
                     entry->mount_point = token;
-                    logging(LOGGING_DEBUG, "Mount Point is %s", token);
+                    // logging(LOGGING_DEBUG, "Mount Point is %s", token);
                     break;
                 case 6: // mount options
                     entry->mount_options = token;
-                    logging(LOGGING_DEBUG, "Mount Options are %s", token);
+                    // logging(LOGGING_DEBUG, "Mount Options are %s", token);
                     break;
                 case 7:
                     if (optional_end) {
                         entry->fstype = token;
-                        logging(LOGGING_DEBUG, "Filesystem Type is %s", token);
+                        // logging(LOGGING_DEBUG, "Filesystem Type is %s", token);
                     } else {
                         if (!strcmp(token, "-")) {
                             optional_end = true;
-                            logging(LOGGING_DEBUG, "Optional field ends");
+                            // logging(LOGGING_DEBUG, "Optional field ends");
                         } else {
-                            logging(LOGGING_DEBUG, "Ignored optional field %s", token);
+                            // logging(LOGGING_DEBUG, "Ignored optional field %s", token);
                         }
                         --segments;
                     }
                     break;
                 case 8:
                     entry->mount_source = token;
-                    logging(LOGGING_DEBUG, "Mount Source is %s", token);
+                    // logging(LOGGING_DEBUG, "Mount Source is %s", token);
                     break;
                 case 9:
                     entry->super_options = token;
-                    logging(LOGGING_DEBUG, "Super Options are %s", token);
+                    // logging(LOGGING_DEBUG, "Super Options are %s", token);
                     break;
                 default:
-                    logging(LOGGING_ERROR, "More columns found in mountinfo than expected");
+                    // logging(LOGGING_ERROR, "More columns found in mountinfo than expected");
                     break;
             }
             token = strtok(NULL, delim);

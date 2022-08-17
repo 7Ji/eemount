@@ -21,8 +21,10 @@ char *eeconfig_get_string(const char *key) {
     size_t len_line;
     size_t len_key = strlen(key);
     size_t len_value;
+    size_t len_alloc = 0;
     char quote;
     char *value = NULL;
+    char *buffer;
     char *line_value = NULL;
     fseek(eeconfig, 0, SEEK_SET);
     while (getline(&line, &size_line, eeconfig) != -1) {
@@ -42,9 +44,12 @@ char *eeconfig_get_string(const char *key) {
             continue;
         }
         if (len_line == len_key + 1) {
-            if ((value = alloc_optional_resize(value, sizeof(char))) == NULL) {
-                logging(LOGGING_ERROR, "Can not allocate memory for configuration value when reading config key '%s'", key);
-                return NULL;
+            if (len_alloc == 0) {
+                if ((value = malloc(sizeof(char))) == NULL) {
+                    logging(LOGGING_ERROR, "Can not allocate memory for configuration value when reading config key '%s'", key);
+                    return NULL;    
+                }
+                len_alloc = 1;
             }
             value[0] = '\0';
             continue;
@@ -62,7 +67,7 @@ char *eeconfig_get_string(const char *key) {
         }
         if (quote) {
             if (line[len_line-1] != quote) { // ' and " must come in pair
-                line[len_line] = '\0';
+                line[len_line] = '\0'; // Just for printing's sake
                 logging(LOGGING_WARNING, "Single quote and double quote not come in pair in emuelec config, please check you config file. Ignored Problematic line:\n%s", line);
                 continue;
             }
@@ -72,9 +77,21 @@ char *eeconfig_get_string(const char *key) {
             len_value = len_line - len_key - 1;
             line_value = line + len_key + 1;
         }
-        if ((value = alloc_optional_resize(value, (len_value + 1)*sizeof(char))) == NULL) {
-            logging(LOGGING_ERROR, "Can not allocate memory for configuration value when reading config key '%s'", key);
-            return NULL;
+        if (len_value + 1 > len_alloc) {
+            if (len_alloc) {
+                buffer = realloc(value, (len_value+1)*sizeof(char));
+            } else {
+                buffer = malloc((len_value+1)*sizeof(char));
+            }
+            if (buffer == NULL) {
+                if (len_alloc) {
+                    free(value);
+                }
+                logging(LOGGING_ERROR, "Can not allocate memory for configuration value when reading config key '%s'", key);
+                return NULL;
+            }
+            value = buffer;
+            len_alloc = len_value + 1;
         }
         strncpy(value, line_value, len_value);
         value[len_value] = '\0';

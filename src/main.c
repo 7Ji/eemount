@@ -38,7 +38,6 @@ int main() {
     //         printf("%u: Source: %s, Root: %s, Mountpoint: %s\n", n, info->mount_source, info->root, info->mount_point);
     //     }
     // }
-    return 0;
     if (!systemd_init_bus() || !eeconfig_initialize()) {
         logging(LOGGING_FATAL, "Failed to initialize");
         return 1;
