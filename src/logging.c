@@ -1,6 +1,6 @@
 #include "logging_p.h"
 
-FILE *logging_get_target(const int level) {
+static FILE *logging_get_target(const int level) {
     switch(level) {
         case LOGGING_FATAL:
         case LOGGING_ERROR:
@@ -12,7 +12,7 @@ FILE *logging_get_target(const int level) {
 }
 
 void logging(const int level, const char *format, ...) {
-    if (level < logging_level) {
+    if (level > logging_level) {
         return;
     }
     FILE *target = logging_get_target(level);
@@ -41,4 +41,10 @@ void logging(const int level, const char *format, ...) {
     vfprintf(target, format, vargs);
     va_end(vargs);
     putc('\n', target);
+}
+
+void logging_set_level(int level) {
+    if ((level >= LOGGING_DISABLED) && (level <= LOGGING_DEBUG)) {
+        logging_level = level;
+    }
 }

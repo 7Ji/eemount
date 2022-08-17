@@ -8,30 +8,35 @@
  */
 enum logging_levels {
     /**
-     * @brief Most detailed logging. The result should not be shown to user except for development
+     * @brief disable logging, this should not be used, and only used internally
      * 
      */
-    LOGGING_DEBUG,
+    LOGGING_DISABLED,
     /**
-     * @brief Normal logging. This is the log we want users to read
+     * @brief Something extremely wrong happened, the wrong program is broken. Notify the user nontheless. This should only be used in main routine
      * 
      */
-    LOGGING_INFO,
-    /**
-     * @brief Something wrong happened but this is still recoverable. Notify the user nontheless
-     * 
-     */
-    LOGGING_WARNING,
+    LOGGING_FATAL,
     /**
      * @brief Something very wrong happened, and the current routine is broken. Notify the user nontheless
      * 
      */
     LOGGING_ERROR,
     /**
-     * @brief Something extremely wrong happened, the wrong program is broken. Notify the user nontheless. This should only be used in main routine
+     * @brief Something wrong happened but this is still recoverable. Notify the user nontheless
      * 
      */
-    LOGGING_FATAL
+    LOGGING_WARNING,
+    /**
+     * @brief Normal logging. This is the log we want users to read
+     * 
+     */
+    LOGGING_INFO,
+    /**
+     * @brief Most detailed logging. The result should not be shown to user except for development
+     * 
+     */
+    LOGGING_DEBUG,
 };
 
 /**
@@ -50,4 +55,11 @@ void logging(const int level, const char *format, ...);
 //  * @return FILE* The corresponding file descriptor, usually stdout or stderr
 //  */
 // FILE *logging_get_target(const int level);
+
+/**
+ * @brief Setting the logging level
+ * 
+ * @param level The LOGGING_LEVEL to set
+ */
+void logging_set_level(int level);
 #endif

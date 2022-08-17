@@ -1,41 +1,148 @@
-#if 0
-int main() {
-    if (!eeconfig_initialize()) {
-        return 1;
-    } 
-    char *value = eeconfig_get_string("ee_load.drive");
-    if (value) {
-        printf("load drive is %s\n", value);
-        free(value);
-    } else {
-        puts("no load drive");
-    }
-    bool bvalue = eeconfig_get_bool("ee_load.legacy", false);
-    if (bvalue) {
-        puts("using old mount");
-    } else {
-        puts("using new mount");
-    }
-    eeconfig_close();
-    return 0;
-}
-#endif
-
 #define PRINT_ONLY
+#include "common.h"
+#include <string.h>
+
 #include "drive.h"
 #include "eeconfig.h"
 #include "logging.h"
 #include "systemd.h"
 #include "mount.h"
-int main() {
-    char escaped[] = "/home/nomad7ji/Development/eemount/wierd\\040ass\\040\\011\\012\\040name";
-    puts(escaped);
-    char *raw = mount_unescape_mountinfo(escaped);
-    if (raw) {
-        puts(raw);
+
+#define EXECUTABLE_EE_BUSYBOX       "ee_busybox"
+#define EXECUTABLE_MOUNT_ROMFS      "mount_romfs"
+#define EXECUTABLE_GET_EE_SETTING   "get_ee_setting"
+#define EXECUTABLE_SET_EE_SETTING   "set_ee_setting"
+
+enum multicall_handler {
+    MULTICALL_MISSING,
+    MULTICALL_MOUNT_ROMFS,
+    MULTICALL_GET_EE_SETTING,
+    MULTICALL_SET_EE_SETTING
+};
+static const size_t len_executable_ee_busybox = strlen(EXECUTABLE_EE_BUSYBOX);
+static const size_t len_executable_mount_romfs = strlen(EXECUTABLE_MOUNT_ROMFS);
+static const size_t len_executable_ee_setting = strlen(EXECUTABLE_GET_EE_SETTING);
+
+static void multicall_description() {
+    puts("EmuELEC multi-call binary, the following functions are supported: \n - get_ee_setting: getting emuelec settings \n - set_ee_setting: setting emuelec settings, \n - mount_romfs: mounting rom");
+}
+
+static void multicall_mountromfs() {
+
+}
+static void multicall_get_ee_setting(int argc, int arg_start, char **argv) {
+
+}
+static void multicall_set_ee_setting() {
+
+}
+int main(int argc, char **argv) {
+    char *executable = basename(argv[0]);
+    int arg_start;
+    if (!strcmp(executable, EXECUTABLE_EE_BUSYBOX)) {
+        if (argc > 1) {
+            executable = argv[1];
+            arg_start = 2;
+        } else {
+            multicall_description();
+            return 0;
+        }
+    } else {
+        arg_start = 1;
+    }
+    int arg_want = 0;
+    size_t len_executable = strlen(executable);
+    int multicall = MULTICALL_MISSING;
+    if (len_executable >= len_executable_ee_busybox) {
+        if (len_executable >= len_executable_mount_romfs) {
+            if (len_executable >= len_executable_ee_setting) {
+                if (!strcmp(executable, EXECUTABLE_GET_EE_SETTING)) {
+                    multicall = MULTICALL_GET_EE_SETTING;
+                    arg_want = 1;
+                } else if (!strcmp(executable, EXECUTABLE_SET_EE_SETTING)) {
+                    multicall = MULTICALL_SET_EE_SETTING;
+                    arg_want = 1;
+                }
+            } else if (!strcmp(executable, EXECUTABLE_MOUNT_ROMFS)) {
+                multicall = MULTICALL_MOUNT_ROMFS;
+            }
+        } else if (!strcmp(executable, EXECUTABLE_EE_BUSYBOX)) {
+            multicall_description();
+            return 0;
+        }
+    }
+    if (arg_start + arg_want  > argc) {
+        logging(LOGGING_ERROR, "%s needs at least %d arguments", executable, arg_want);
+        return 1;
+    }
+    // Initialization
+    switch (multicall) {
+        case MULTICALL_MISSING:
+            logging(LOGGING_FATAL, "Unknown multicall applet: %s", executable);
+            return 1;
+            break;
+        case MULTICALL_MOUNT_ROMFS:
+            if (!systemd_init_bus()) {
+                logging(LOGGING_FATAL, "Failed to initialize systemd bus");
+                return 1;
+            }
+            __attribute__((fallthrough));
+        case MULTICALL_GET_EE_SETTING:
+            logging_set_level(LOGGING_ERROR); // Since the caller expects our output on stdout
+            if (arg_start > argc) {
+                logging(LOGGING_FATAL, "Applet get_ee_setting expects at least one argument");
+            }
+            __attribute__((fallthrough));
+        case MULTICALL_SET_EE_SETTING:
+            if (!eeconfig_initialize()) {
+                logging(LOGGING_FATAL, "Failed to initialize eeconfig");
+                return 1;
+            }
+            break;
+    }
+    logging(LOGGING_DEBUG, "Initialization done");
+    switch (multicall) {
+        case MULTICALL_MOUNT_ROMFS:
+            multicall_mount_romfs();
+            break;
+        case MULTICALL_GET_EE_SETTING:
+            multicall_get_ee_config();
+            break;
+        case MULTICALL_SET_EE_SETTING:
+            multicall_set_ee_config();
+            break;
+    }
+    switch (multicall) {
+        case MULTICALL_MOUNT_ROMFS:
+            systemd_release();
+            __attribute__((fallthrough));
+        case MULTICALL_GET_EE_SETTING:
+        case MULTICALL_SET_EE_SETTING:
+            eeconfig_close();
+            break;
     }
     return 0;
+    if (argc > 1) {
+        
+
+
+
+
+
+        return 1;
+    } else {
+        puts("EmuELEC multi-call binary, the following functions are supported: \n - get_ee_setting: getting emuelec settings \n - set_ee_setting: setting emuelec settings, \n - mount_romfs: mounting rom");
+    }
+    // char escaped[] = "/home/nomad7ji/Development/eemount/wierd\\040ass\\040\\011\\012\\040name";
+    // puts(escaped);
+    // char *raw = mount_unescape_mountinfo(escaped);
+    // if (raw) {
+    //     puts(raw);
+    // }
+    // return 0;
+    logging_set_level(LOGGING_DISABLED);
     struct mount_table *table = mount_get_table();
+    return 0;
     // struct mount_info *info;
     free(table);
     // if(table) {
