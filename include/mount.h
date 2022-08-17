@@ -101,5 +101,7 @@ struct mount_table* mount_get_table();
  * @param drive_helper A pointer to a drive_helper struct
  * @return struct mount_helper* A pointer to mount_helper struct
  */
+
+char *mount_unescape_mountinfo(char *escaped);
 struct mount_helper *mount_get_systems(struct systemd_mount_helper *systemd_helper, struct drive_helper *drive_helper);
 #endif

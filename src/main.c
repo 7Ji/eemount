@@ -28,6 +28,13 @@ int main() {
 #include "systemd.h"
 #include "mount.h"
 int main() {
+    char escaped[] = "/home/nomad7ji/Development/eemount/wierd\\040ass\\040\\011\\012\\040name";
+    puts(escaped);
+    char *raw = mount_unescape_mountinfo(escaped);
+    if (raw) {
+        puts(raw);
+    }
+    return 0;
     struct mount_table *table = mount_get_table();
     // struct mount_info *info;
     free(table);

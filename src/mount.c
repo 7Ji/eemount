@@ -9,6 +9,62 @@
 //   newline (aka \n)   -- as \012
 //   backslash (aka \\) -- as \134
 
+char *mount_unescape_mountinfo(char *escaped) {
+    size_t len = strlen(escaped);
+    char *raw = malloc((len+1)*sizeof(char));
+    if (raw == NULL) {
+        logging(LOGGING_ERROR, "Failed to allocate memory when unescaping mountinfo");
+        return NULL;
+    }
+    size_t diff = 0;
+    for (size_t i=0; i<len; ++i) {
+        if ((i<len-3) && (escaped[i] == '\\')) {
+            switch (escaped[i+1]) {
+                case '0':
+                    switch (escaped[i+2]) {
+                        case '1':
+                            switch (escaped[i+3]) {
+                                case '1':
+                                    // logging(LOGGING_DEBUG, "Special character tab found");
+                                    raw[i-diff] = '\t';
+                                    i+=3;
+                                    diff+=3;
+                                    continue;
+                                case '2':
+                                    // logging(LOGGING_DEBUG, "Special character new line found");
+                                    raw[i-diff] = '\n';
+                                    diff+=3;
+                                    i+=3;
+                                    continue;
+                            }
+                            break;
+                        case '4':
+                            if (escaped[i+3] == '0') {
+                                // logging(LOGGING_DEBUG, "Special character spcae found");
+                                raw[i-diff] = ' ';
+                                diff+=3;
+                                i+=3;
+                                continue;
+                            }
+                            break;
+                    }
+                    break;
+                case '1':
+                    if ((escaped[i+2] == '3') && (escaped[i+3] == '4')) {
+                        // logging(LOGGING_DEBUG, "Special character backslash found");
+                        raw[i-diff] = '\\';
+                        diff+=3;
+                        i+=3;
+                        continue;
+                    }
+                    break;
+            }
+        }
+        raw[i-diff] = escaped[i];
+    }
+    raw[len-diff] = '\0';
+    return raw;
+}
 
 struct mount_table* mount_get_table() {
     struct mount_table *table = malloc(sizeof(struct mount_table));
