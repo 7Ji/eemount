@@ -1,6 +1,10 @@
 #ifndef HAVE_ALLOC_H
 #define HAVE_ALLOC_H
+
 #include "common.h"
+
+#define ALLOC_BASE_SIZE     16
+#define ALLOC_MULTIPLIER     2
 
 /**
  * @brief (Re)allocate memory according to given for pointer
