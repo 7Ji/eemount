@@ -8,26 +8,23 @@ static FILE *drive_check(const char *drive) {
     size_t len_path_mark = (sizeof(MOUNT_EXT_PARENT) + sizeof(MOUNT_EXT_ROMS_PARENT) + sizeof(MOUNT_EXT_MARK))/sizeof(char) + strlen(drive);
 
     if ((path_mark = malloc((len_path_mark + 1) * sizeof(char))) == NULL) {
-        logging(LOGGING_WARNING, "Skipped external drive '%s': Failed to allocate memory for mark path under it", drive);
+        logging(LOGGING_ERROR, "Skipped external drive '%s': Failed to allocate memory for mark path under it", drive);
         return NULL;
     }
 
     int len_path_mark_actual = snprintf(path_mark, len_path_mark + 1, MOUNT_EXT_PARENT"/%s/"MOUNT_EXT_ROMS_PARENT"/"MOUNT_EXT_MARK, drive);
     if ((size_t)len_path_mark_actual != len_path_mark) {
         logging(LOGGING_ERROR, "Formatted mark path '%s' length is wrong: expected %zu, actual %d", path_mark, len_path_mark, len_path_mark_actual);
-        free(path_mark);
-        return NULL;
+        goto free_mark;
     }
     if (stat(path_mark, &stat_mark) != 0) {
         logging(LOGGING_INFO, "Skipped external drive '%s': mark file '%s' either does not exist or is inaccessiable", drive, path_mark);
         logging(LOGGING_DEBUG, "return value of stat(): %d, result: ", errno, strerror(errno));
-        free(path_mark);
-        return NULL;
+        goto free_mark;
     }
     if ((stat_mark.st_mode & S_IFMT) != S_IFREG) {
-        logging(LOGGING_WARNING, "Skipped external drive '%s': mark '%s' is not a regular file", drive, path_mark);
-        free(path_mark);
-        return NULL;
+        logging(LOGGING_ERROR, "Skipped external drive '%s': mark '%s' is not a regular file", drive, path_mark);
+        goto free_mark;
     }
     if ((fp = fopen(path_mark, "r")) == NULL) {
         /* Should we assume this drive should be mounted as a whole? */
@@ -35,6 +32,10 @@ static FILE *drive_check(const char *drive) {
         free(path_mark);
     }
     return fp;
+
+free_mark:
+    free(path_mark);
+    return NULL;
 }
 
 static bool drive_scan(struct drive *drive, FILE *fp) {
