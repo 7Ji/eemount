@@ -41,6 +41,7 @@ free_mark:
 static bool drive_scan(struct drive *drive, FILE *fp) {
     char *line, **system, **buffer;
     bool note_empty = false;
+    bool illegal_char;
     size_t size_line = 0;
     size_t len_line;
     while (getline(&line, &size_line, fp) != -1) {
@@ -55,6 +56,31 @@ static bool drive_scan(struct drive *drive, FILE *fp) {
         if (len_line > 256) {
             logging(LOGGING_WARNING, "Line ignored as it is too long, please fix the mark file for drive '%s' and fix the following line: %s", drive->name, line);
             continue;
+        }
+        illegal_char = false;
+        for (size_t i=0; i<len_line; ++i) {
+            if (line[i] == '/') {
+                illegal_char = true;
+                break;
+            }
+        }
+        if (illegal_char) {
+            line[len_line] = '\0';
+            logging(LOGGING_WARNING, "Ignored system '%s' defined for drive '%s' since the name contains illegal character", line, drive->name);
+            continue;
+        }
+        if (len_line >= drive_len_reserved_mark) {
+            if (len_line == drive_len_reserved_ports_scripts) {
+                if (!strncmp(line, DRIVE_SYSTEM_RESERVED_PORTS_SCRIPTS, drive_len_reserved_ports_scripts)) {
+                    logging(LOGGING_WARNING, "Ignored system '"DRIVE_SYSTEM_RESERVED_PORTS_SCRIPTS"' for drive '%s' since it's reserved", drive->name);
+                    continue;
+                }
+            } else if (len_line == drive_len_reserved_mark) {
+                if (!strncmp(line, DRIVE_SYSTEM_RESERVED_MARK, drive_len_reserved_mark)) {
+                    logging(LOGGING_WARNING, "Ignored system '"DRIVE_SYSTEM_RESERVED_MARK"' for drive '%s' since it's reserved", drive->name);
+                    continue;
+                }
+            }
         }
         if ((++(drive->count)) > drive->alloc_systems) {
             if (drive->alloc_systems) {
@@ -83,7 +109,6 @@ static bool drive_scan(struct drive *drive, FILE *fp) {
         (*system)[len_line] = '\0';
         logging(LOGGING_DEBUG, "Drive '%s': Found system '%s'", drive->name, *system);
     }
-
     free(line);
     logging(LOGGING_DEBUG, "Drive '%s': Found %d system(s)", drive->name, drive->count);
     if (drive->count > 1) {
