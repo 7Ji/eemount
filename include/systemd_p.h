@@ -1,5 +1,6 @@
 #include "systemd.h"
 
+#include <dirent.h>
 #include <systemd/sd-bus.h>
 
 #include "logging.h"
@@ -15,7 +16,7 @@
 #define SYSTEMD_MOUNT_SUFFIX        ".mount"
 #define SYSTEMD_MOUNT_PATTERN       SYSTEMD_MOUNT_ROOT"*"SYSTEMD_MOUNT_SUFFIX
 #define SYSTEMD_MOUNT_ROOT_UNIT     SYSTEMD_MOUNT_ROOT SYSTEMD_MOUNT_SUFFIX
-
+#define SYSTEMD_UNIT_DIR            "/storage/.config/system.d"
 
 static const size_t len_systemd_mount_root = strlen(SYSTEMD_MOUNT_ROOT);
 static const size_t len_systemd_suffix = strlen(SYSTEMD_MOUNT_SUFFIX);

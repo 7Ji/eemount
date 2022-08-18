@@ -174,7 +174,7 @@ struct drive_helper *drive_get_mounts() {
             logging(LOGGING_ERROR, "Can not open '%s' to check all directories", MOUNT_EXT_PARENT);
             return NULL;
         }
-        while ((dir_entry = readdir(dir)) != NULL) {
+        while ((dir_entry = readdir(dir))) {
             if ((dir_entry->d_type != DT_DIR) || !strcmp(dir_entry->d_name, ".") || !strcmp(dir_entry->d_name, "..") || (target && strcmp(dir_entry->d_name, target)) || ((fp = drive_check(dir_entry->d_name)) == NULL)) {
                 /*
                 Skip the entry in case of:
@@ -191,23 +191,25 @@ struct drive_helper *drive_get_mounts() {
                     logging(LOGGING_ERROR, "Failed to allocate memory for mount drive helper");
                     goto free_file;
                 }
-                drive_helper->drives = NULL;
+                if ((drive_helper->drives = malloc(sizeof(struct drive)*ALLOC_BASE_SIZE)) == NULL) {
+                    logging(LOGGING_ERROR, "Failed to allocate memory for mount drive entry '%s'", dir_entry->d_name);
+                    goto free_helper;
+                }
                 drive_helper->count = 0;
-                drive_helper->alloc_drives = 0;
+                drive_helper->alloc_drives = ALLOC_BASE_SIZE;
             }
             if ((++(drive_helper->count)) > drive_helper->alloc_drives) {
-                if (drive_helper->alloc_drives) {
-                    drive_helper->alloc_drives *= ALLOC_MULTIPLIER;
-                    buffer = realloc(drive_helper->drives, sizeof(struct drive)*(drive_helper->alloc_drives));
-                } else {
-                    drive_helper->alloc_drives = ALLOC_BASE_SIZE;
-                    buffer = malloc(sizeof(struct drive)*ALLOC_BASE_SIZE);
-                }
+                // if (drive_helper->alloc_drives) {
+                drive_helper->alloc_drives *= ALLOC_MULTIPLIER;
+                buffer = realloc(drive_helper->drives, sizeof(struct drive)*(drive_helper->alloc_drives));
+                // } else {
+                //     drive_helper->alloc_drives = ALLOC_BASE_SIZE;
+                //     buffer = malloc(sizeof(struct drive)*ALLOC_BASE_SIZE);
+                // }
                 if (buffer) {
                     drive_helper->drives = buffer;
                 } else {
-                    logging(LOGGING_ERROR, "Failed to allocate memory for mount drive entry '%s'", dir_entry->d_name);
-                    --(drive_helper->count);
+                    logging(LOGGING_ERROR, "Failed to reallocate memory for mount drive entry '%s'", dir_entry->d_name);
                     goto free_drives;
                 }
             }
@@ -217,7 +219,6 @@ struct drive_helper *drive_get_mounts() {
             drive->alloc_systems = 0;
             if ((drive->name = strdup(dir_entry->d_name)) == NULL) {
                 logging(LOGGING_ERROR, "Failed to allocate memory for drive name of drive '%s'", dir_entry->d_name);
-                --(drive_helper->count);
                 goto free_drives;
             }
             logging(LOGGING_INFO, "Start reading mark file for systems of drive '%s'", drive->name);
@@ -242,17 +243,19 @@ struct drive_helper *drive_get_mounts() {
     return NULL;
 
 free_drives:
-    unsigned int i, j;
-    for (i=0; i<drive_helper->count; ++i) {
-        // free(((drive_helper->drives)+i)->content);
-        for (j=0; j<((drive_helper->drives)+i)->count; ++j) {
-            free(((drive_helper->drives)+i)->systems[j]);
+    if (--(drive_helper->count)) {
+        unsigned int i, j;
+        for (i=0; i<drive_helper->count; ++i) {
+            // free(((drive_helper->drives)+i)->content);
+            for (j=0; j<((drive_helper->drives)+i)->count; ++j) {
+                free(((drive_helper->drives)+i)->systems[j]);
+            }
+            free(((drive_helper->drives)+i)->name);
+            free(((drive_helper->drives)+i)->systems);
         }
-        free(((drive_helper->drives)+i)->name);
-        free(((drive_helper->drives)+i)->systems);
+        free(drive_helper->drives);
     }
-    free(drive_helper->drives);
-// free_helper:
+free_helper:
     free(drive_helper);
 free_file:
     fclose(fp);

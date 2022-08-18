@@ -37,6 +37,18 @@ void systemd_release();
  */
 bool systemd_is_active(char *path);
 
+struct systemd_mount_unit {
+    char *name;
+    char *system;
+};
+
+struct systemd_mount_unit_helper {
+    struct systemd_mount_unit *mounts;
+    struct systemd_mount_unit *root;
+    unsigned int count;
+    unsigned int alloc_mounts;
+};
+
 /**
  * @brief The struct to hold information about a systemd mount unit
  * 

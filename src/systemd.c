@@ -49,6 +49,7 @@ bool systemd_active_unit(char *unit) {
     sd_bus_error error = SD_BUS_ERROR_NULL;
     sd_bus_message *reply = NULL;
     sd_bus_call_method(systemd_bus, SYSTEMD_DESTINATION, SYSTEMD_PATH, SYSTEMD_INTERFACE_MANAGER, "StartUnit", &error, &reply, "ss", unit, "replace");
+    return false;
 }
 
 static char *systemd_system_from_name(const char *name) {
@@ -85,11 +86,92 @@ void systemd_mount_helper_free (struct systemd_mount_helper **mounts_helper) {
     alloc_free_if_used((void **)mounts_helper);
 }
 
-void systemd_get_units() {
-    
+struct systemd_mount_unit_helper *systemd_get_units() {
+    DIR *dir = opendir(SYSTEMD_UNIT_DIR);
+    if (dir == NULL) {
+        logging(LOGGING_ERROR, "Failed to open '"SYSTEMD_UNIT_DIR"' to scan systemd mount units");
+        return NULL;
+    }
+    struct dirent *dir_entry;
+    struct systemd_mount_unit_helper *helper = NULL;
+    struct systemd_mount_unit *mount, *buffer;
+    size_t len;
+    size_t len_system;
+    while ((dir_entry = readdir(dir))) {
+        switch (dir_entry->d_type) {
+            case DT_REG:
+            case DT_LNK:
+                break;
+            default:
+                continue;
+        }
+        if ((len = strlen(dir_entry->d_name)) < len_systemd_mount_root) {
+            continue;
+        }
+        if (len > 255) {
+            logging(LOGGING_WARNING, "File name too long (this hould not happen), ignored: %s", dir_entry->d_name);
+        }
+        if (strcmp(dir_entry->d_name + len - len_systemd_suffix, SYSTEMD_MOUNT_SUFFIX) || strncmp(dir_entry->d_name, SYSTEMD_MOUNT_ROOT, len_systemd_mount_root)) {
+            continue;
+        }
+        len_system = len - len_systemd_suffix - len_systemd_mount_root;
+        if (helper == NULL) {
+            if ((helper = malloc(sizeof(struct systemd_mount_unit_helper))) == NULL) {
+                logging(LOGGING_ERROR, "Failed to allocate memory for systemd mount unit helper!");
+                goto free_dir;
+            }
+            if ((helper->mounts = malloc(sizeof(struct systemd_mount_unit)*ALLOC_BASE_SIZE)) == NULL) {
+                logging(LOGGING_ERROR, "Failed to allocate memory for systemd mount units!");
+                goto free_helper;
+            }
+            helper->count = 0;
+            helper->root = NULL;
+            helper->alloc_mounts = ALLOC_BASE_SIZE;
+        }
+        if (++(helper->count) > helper->alloc_mounts) {
+            helper->alloc_mounts *= ALLOC_MULTIPLIER;
+            buffer = realloc(helper->mounts, sizeof(struct systemd_mount_unit)*(helper->alloc_mounts));
+            if (buffer) {
+                helper->mounts = buffer;
+            } else {
+                logging(LOGGING_ERROR, "Failed to reallocate for systemd mount units");
+                goto free_mounts;
+            }
+        }
+        mount = helper->mounts + helper->count - 1;
+        if ((mount->name = malloc((len+1)*sizeof(char))) == NULL) {
+            logging(LOGGING_ERROR, "Failed to allocate memory for system mount unit's name");
+            goto free_mounts;
+        }
+        if ((mount->system = malloc((len_system+1)*sizeof(char))) == NULL) {
+            free(mount->name);
+            logging(LOGGING_ERROR, "Failed to allocate memory for system mount unit's system name");
+            goto free_mounts;
+        }
 
-    
+        if (len_system == 0) {
+            helper->root = helper->mounts + helper->count-1;
+        }
+    }
 
+
+
+
+    return helper;
+
+free_mounts:
+    if (--(helper->count)) {
+        for (unsigned int i=0; i<helper->count; ++i) {
+            free((helper->mounts+i)->name);
+            free((helper->mounts+i)->system);
+        }
+        free(helper->mounts);
+    }
+free_helper:
+    free(helper);
+free_dir:
+    closedir(dir);
+    return NULL;
 }
 
 struct systemd_mount_helper *systemd_get_mounts() {
