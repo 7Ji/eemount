@@ -1,6 +1,11 @@
 #ifndef MULTICALL
 #include "mount.h"
 int main() {
+    char *path;
+    if (systemd_encode_path("storage-roms-nes.mount", &path)) {
+        puts(path);
+    }
+
     if (mount_prepare()) {
         puts("ready");
     } else {

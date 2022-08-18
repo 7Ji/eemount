@@ -76,6 +76,11 @@ void systemd_mount_helper_free (struct systemd_mount_helper **mounts_helper) {
     alloc_free_if_used((void **)mounts_helper);
 }
 
+void systemd_get_units() {
+    
+
+}
+
 struct systemd_mount_helper *systemd_get_mounts() {
     sd_bus_message *method = NULL;
     if (sd_bus_message_new_method_call(systemd_bus, &method, SYSTEMD_DESTINATION, SYSTEMD_PATH, SYSTEMD_INTERFACE_MANAGER, "ListUnitsByPatterns") < 0) {
