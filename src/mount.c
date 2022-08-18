@@ -10,24 +10,31 @@ bool mount_umount_entry(struct mount_entry *entry) {
 }
 
 struct mount_entry *mount_find_entry_by_mount_point(const char *mount_point, struct mount_table *table) {
-    struct mount_entry *entry = NULL, *buffer;
+    // struct mount_entry *entry = NULL, *buffer;
+    struct mount_entry *entry;
     for (unsigned i=0; i<table->count; ++i) {
-        buffer = table->entries + i;
-        if (!strcmp(mount_point, buffer->mount_point)) {
-            if (entry) {
-                logging(LOGGING_WARNING, "Multiple mount entries on mountpoint %s found, choosing the last one", mount_point);
-            }
-            entry = buffer;
+        entry = table->entries + i;
+        if (!strcmp(mount_point, entry->mount_point)) {
+            return entry;
+            // if (entry) {
+            //     logging(LOGGING_WARNING, "Multiple mount entries on mountpoint %s found, choosing the last one", mount_point);
+            // }
+            // entry = buffer;
         }
     }
-    return entry;
+    return NULL;
+    // return entry;
 }
 
-
-bool mount_umount_entry_recursive(struct mount_entry *entry, struct mount_table *table) {
-    table->count;
-
-
+bool mount_umount_entry_recursive(struct mount_entry *entry, struct mount_table *table, unsigned int entry_id) {
+    bool ret = true;
+    for (unsigned int i=entry_id+1; i<table->count; ++i) {
+        if ((table->entries+i)->parent_id == entry->mount_id) {
+            ret &= mount_umount_entry_recursive(entry, table, i);
+        }
+    }
+    ret &= mount_umount_entry(entry);
+    return ret;
 }
 
 struct mount_table* mount_get_table() {
@@ -79,7 +86,7 @@ struct mount_table* mount_get_table() {
         // We do these on our dupped line, so we don't need to malloc all strings
         optional_end = false;
         entry->line[len_line] = '\0';
-        logging(LOGGING_DEBUG, "Processing mountinfo line: %s", entry->line);
+        // logging(LOGGING_DEBUG, "Processing mountinfo line: %s", entry->line);
         token = strtok(entry->line, delim);
         segments = 0;
         while (token) {
@@ -139,6 +146,7 @@ struct mount_table* mount_get_table() {
             token = strtok(NULL, delim);
         }
     }
+    fclose(fp);
     return table;
 free_fp:
     fclose(fp);

@@ -2,10 +2,16 @@
 #include "mount.h"
 int main() {
     struct mount_table* table = mount_get_table();
-    struct mount_entry* info = mount_find_entry_by_mount_point("/srv/netshare/media", table);
+    struct mount_entry* info = mount_find_entry_by_mount_point("/home/nomad7ji/testdir", table);
     if (info) {
         printf("Mount ID %u: Source: %s\n", info->mount_id, info->mount_source);
     }
+    // while (info) {
+    //     printf("Mount ID %u: Source: %s\n", info->mount_id, info->mount_source);
+    //     table = mount_get_table();
+    //     info = mount_find_entry_by_mount_point("/home/nomad7ji/testdir", table);
+    // }
+    return 0;
     // if (table) {
     //     for (unsigned int i=0; i<table->count; ++i) {
     //         info = table->entries + i;
