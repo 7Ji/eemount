@@ -281,3 +281,26 @@ struct mount_helper *mount_get_systems(struct systemd_mount_helper *systemd_help
 void umount_drive() {
     umount2("/storage/roms", MNT_FORCE);
 }
+
+bool mount_prepare() {
+    struct mount_table* table = mount_get_table();
+    struct mount_entry* entry;
+    if (table) {
+        entry = mount_find_entry_by_mount_point(mount_point_roms, table);
+        while (entry) {
+            if (!mount_umount_entry_recursive(entry, table, 0)) {
+                mount_free_table(&table);
+                return false;
+            }
+            mount_free_table(&table);
+            if ((table = mount_get_table()) == NULL) {
+                return false;
+            }
+            entry = mount_find_entry_by_mount_point(mount_point_roms, table);
+        }
+        mount_free_table(&table);
+        return true;
+    } else {
+        return false;
+    }
+}

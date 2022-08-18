@@ -1,34 +1,25 @@
 #ifndef MULTICALL
 #include "mount.h"
 int main() {
-    const char mount_point[] = "/mnt/test_storage";
-    struct mount_table* table = mount_get_table();
-    struct mount_entry* entry;
-    if (table) {
-        entry = mount_find_entry_by_mount_point(mount_point, table);
-        while (entry) {
-            mount_umount_entry_recursive(entry, table, 0);
-            mount_free_table(&table);
-            table = mount_get_table();
-            entry = mount_find_entry_by_mount_point(mount_point, table);
-        }
-        mount_free_table(&table);
+    if (mount_prepare()) {
+        puts("ready");
+    } else {
+        puts("oops");
     }
-    // while (info) {
-    //     printf("Mount ID %u: Source: %s\n", info->mount_id, info->mount_source);
-    //     table = mount_get_table();
-    //     info = mount_find_entry_by_mount_point("/home/nomad7ji/testdir", table);
+    // const char mount_point[] = "/mnt/test_storage";
+    // struct mount_table* table = mount_get_table();
+    // struct mount_entry* entry;
+    // if (table) {
+    //     entry = mount_find_entry_by_mount_point(mount_point, table);
+    //     while (entry) {
+    //         mount_umount_entry_recursive(entry, table, 0);
+    //         mount_free_table(&table);
+    //         table = mount_get_table();
+    //         entry = mount_find_entry_by_mount_point(mount_point, table);
+    //     }
+    //     mount_free_table(&table);
     // }
     return 0;
-    // if (table) {
-    //     for (unsigned int i=0; i<table->count; ++i) {
-    //         info = table->entries + i;
-    //         printf("Source: %s, Filesystem: %s, Root: %s, Mountpoint: %s\n", info->mount_source,  info->fstype, info->root, info->mount_point);
-    //         if (info->mount_id == 355) {
-    //             mount_umount_entry(info);
-    //         }
-    //     }
-    // }
 }
 #else
 #define PRINT_ONLY
