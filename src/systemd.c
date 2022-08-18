@@ -45,7 +45,10 @@ bool systemd_is_active(char *path) {
 }
 
 
-bool systemd_active_unit(char *unit) {
+bool systemd_start_unit(char *unit) {
+    // Since we handle all these mount units by ourselves, overlapped enabled systemd mount units should be disabled during init:
+    // rm -f /storage/.config/system.d/*.wants/storage-roms*.mount
+
     sd_bus_error error = SD_BUS_ERROR_NULL;
     sd_bus_message *reply = NULL;
     sd_bus_call_method(systemd_bus, SYSTEMD_DESTINATION, SYSTEMD_PATH, SYSTEMD_INTERFACE_MANAGER, "StartUnit", &error, &reply, "ss", unit, "replace");

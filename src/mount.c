@@ -42,7 +42,6 @@ void mount_free_table(struct mount_table **table) {
         free(*table);
         *table=NULL;
     }
-
 }
 
 struct mount_table* mount_get_table() {

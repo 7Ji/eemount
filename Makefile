@@ -5,7 +5,7 @@ DIR_OBJECT = obj
 CC = gcc
 CFLAGS = -I$(DIR_INCLUDE) -Wall -Wextra
 
-LDFLAGS = -lsystemd
+LDFLAGS = -lsystemd -lblkid
 
 INCLUDES = $(wildcard $(DIR_INCLUDE)/*.h)
 

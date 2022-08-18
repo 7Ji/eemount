@@ -9,4 +9,6 @@
 #include "alloc.h"
 
 #define MOUNT_MOUNTINFO     "/proc/self/mountinfo"
-static const char mount_point_roms[] = "/storage/roms";
+#define MOUNT_STORAGE       "/storage"
+static const char mount_point_roms[] = MOUNT_STORAGE"/roms";
+static const char mount_point_update[] = MOUNT_STORAGE"/.update";
