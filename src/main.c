@@ -1,16 +1,30 @@
 #ifndef MULTICALL
+#include "systemd.h"
 #include "mount.h"
 int main() {
+    if (!systemd_init_bus()) {
+        puts("Cannot initialize systemd");
+        return 1;
+    }
     char *path;
     if (systemd_encode_path("storage-roms-nes.mount", &path)) {
         puts(path);
-    }
-
-    if (mount_prepare()) {
-        puts("ready");
     } else {
-        puts("oops");
+        systemd_release();
+        return 1;
     }
+    if (systemd_is_active(path)) {
+        puts("It is running");
+    } else {
+        puts("Not running");
+    }
+    systemd_release();
+
+    // if (mount_prepare()) {
+    //     puts("ready");
+    // } else {
+    //     puts("oops");
+    // }
     // const char mount_point[] = "/mnt/test_storage";
     // struct mount_table* table = mount_get_table();
     // struct mount_entry* entry;

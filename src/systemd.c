@@ -32,14 +32,23 @@ bool systemd_is_active(char *path) {
     char *msg = NULL;
 
     if(sd_bus_get_property_string(systemd_bus, SYSTEMD_DESTINATION, path, SYSTEMD_INTERFACE_UNIT, "ActiveState", &err, &msg) < 0) {
-        fprintf(stderr, "Failed to get status \n - Message: %s \n Error: %s \n", msg, err.message);
+        logging(LOGGING_ERROR, "Failed to get status \n - Message: %s \n Error: %s \n", msg, err.message);
+        sd_bus_error_free(&err);
         return false;
     }
+    logging(LOGGING_DEBUG, "Got active state of unit: %s", msg);
     if (strcmp(msg, "active")) {
         return false;
     } else {
         return true;
     }
+}
+
+
+bool systemd_active_unit(char *unit) {
+    sd_bus_error error = SD_BUS_ERROR_NULL;
+    sd_bus_message *reply = NULL;
+    sd_bus_call_method(systemd_bus, SYSTEMD_DESTINATION, SYSTEMD_PATH, SYSTEMD_INTERFACE_MANAGER, "StartUnit", &error, &reply, "ss", unit, "replace");
 }
 
 static char *systemd_system_from_name(const char *name) {
@@ -77,6 +86,8 @@ void systemd_mount_helper_free (struct systemd_mount_helper **mounts_helper) {
 }
 
 void systemd_get_units() {
+    
+
     
 
 }
