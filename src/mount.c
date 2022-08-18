@@ -9,32 +9,40 @@ bool mount_umount_entry(struct mount_entry *entry) {
     }
 }
 
+bool mount_umount_entry_recursive(struct mount_entry *entry, struct mount_table *table, unsigned int entry_id) {
+    bool ret = true;
+    for (unsigned int i=entry_id+1; i<table->count; ++i) {
+        if ((table->entries+i)->parent_id == entry->mount_id) {
+            ret &= mount_umount_entry_recursive((table->entries+i), table, i);
+        }
+    }
+    ret &= mount_umount_entry(entry);
+    return ret;
+}
+
 struct mount_entry *mount_find_entry_by_mount_point(const char *mount_point, struct mount_table *table) {
-    // struct mount_entry *entry = NULL, *buffer;
     struct mount_entry *entry;
     for (unsigned i=0; i<table->count; ++i) {
         entry = table->entries + i;
         if (!strcmp(mount_point, entry->mount_point)) {
             return entry;
-            // if (entry) {
-            //     logging(LOGGING_WARNING, "Multiple mount entries on mountpoint %s found, choosing the last one", mount_point);
-            // }
-            // entry = buffer;
         }
     }
     return NULL;
-    // return entry;
 }
 
-bool mount_umount_entry_recursive(struct mount_entry *entry, struct mount_table *table, unsigned int entry_id) {
-    bool ret = true;
-    for (unsigned int i=entry_id+1; i<table->count; ++i) {
-        if ((table->entries+i)->parent_id == entry->mount_id) {
-            ret &= mount_umount_entry_recursive(entry, table, i);
+void mount_free_table(struct mount_table **table) {
+    if (*table) {
+        if ((*table)->entries) {
+            for (unsigned int i=0; i<(*table)->count; ++i) {
+                free(((*table)->entries+i)->line);
+            }
+            free((*table)->entries);
         }
+        free(*table);
+        *table=NULL;
     }
-    ret &= mount_umount_entry(entry);
-    return ret;
+
 }
 
 struct mount_table* mount_get_table() {
@@ -102,6 +110,8 @@ struct mount_table* mount_get_table() {
                 case 3: // major:minor
                     entry->major_minor = token;
                     // logging(LOGGING_DEBUG, "Major:Minor pair is %s", token);
+                    entry->major = util_uint_from_ulong(strtoul(token, &endptr, 10));
+                    entry->minor = util_uint_from_ulong(strtoul(endptr+1, &endptr, 10));
                     break;
                 case 4: // root
                     entry->root = token;

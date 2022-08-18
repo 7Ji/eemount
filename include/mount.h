@@ -92,9 +92,10 @@ struct mount_helper {
      */
     unsigned int alloc_systems;
 };
-
-struct mount_entry *mount_find_entry_by_mount_point(const char *mount_point, struct mount_table *table);
 bool mount_umount_entry(struct mount_entry *entry);
+bool mount_umount_entry_recursive(struct mount_entry *entry, struct mount_table *table, unsigned int entry_id);
+struct mount_entry *mount_find_entry_by_mount_point(const char *mount_point, struct mount_table *table);
+void mount_free_table(struct mount_table **table);
 struct mount_table* mount_get_table();
 /**
  * @brief Get a list of all systems and how they should be mounted

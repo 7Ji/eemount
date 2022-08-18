@@ -1,10 +1,18 @@
 #ifndef MULTICALL
 #include "mount.h"
 int main() {
+    const char mount_point[] = "/mnt/test_storage";
     struct mount_table* table = mount_get_table();
-    struct mount_entry* info = mount_find_entry_by_mount_point("/home/nomad7ji/testdir", table);
-    if (info) {
-        printf("Mount ID %u: Source: %s\n", info->mount_id, info->mount_source);
+    struct mount_entry* entry;
+    if (table) {
+        entry = mount_find_entry_by_mount_point(mount_point, table);
+        while (entry) {
+            mount_umount_entry_recursive(entry, table, 0);
+            mount_free_table(&table);
+            table = mount_get_table();
+            entry = mount_find_entry_by_mount_point(mount_point, table);
+        }
+        mount_free_table(&table);
     }
     // while (info) {
     //     printf("Mount ID %u: Source: %s\n", info->mount_id, info->mount_source);

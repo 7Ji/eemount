@@ -19,4 +19,4 @@
 
 static const size_t len_systemd_mount_root = strlen(SYSTEMD_MOUNT_ROOT);
 static const size_t len_systemd_suffix = strlen(SYSTEMD_MOUNT_SUFFIX);
-static sd_bus *systemd_bus;
+static sd_bus *systemd_bus = NULL;

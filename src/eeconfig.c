@@ -12,6 +12,8 @@ void eeconfig_close() {
     if (eeconfig) {
         fclose(eeconfig);
         eeconfig = NULL;
+    } else {
+        logging(LOGGING_WARNING, "EE config not initialized yet, ignored close request");
     }
 }
 

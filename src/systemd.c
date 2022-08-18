@@ -19,7 +19,12 @@ bool systemd_init_bus() {
 }
 
 void systemd_release() {
-    sd_bus_flush_close_unref(systemd_bus);
+    if (systemd_bus) {
+        sd_bus_flush_close_unref(systemd_bus);
+        systemd_bus = NULL;
+    } else {
+        logging(LOGGING_WARNING, "Systemd bus not initialized yet, ignored release request");
+    }
 }
 
 bool systemd_is_active(char *path) {
