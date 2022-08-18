@@ -18,6 +18,13 @@
 #define SYSTEMD_MOUNT_ROOT_UNIT     SYSTEMD_MOUNT_ROOT SYSTEMD_MOUNT_SUFFIX
 #define SYSTEMD_UNIT_DIR            "/storage/.config/system.d"
 
+
+#define SYSTEMD_SYSTEM_RESERVED_MARK              "emuelecroms"
+#define SYSTEMD_SYSTEM_RESERVED_PORTS_SCRIPTS     "ports_scripts"
+
+static const size_t len_systemd_reserved_mark = strlen(SYSTEMD_SYSTEM_RESERVED_MARK);
+static const unsigned int len_systemd_reserved_ports_scripts = strlen(SYSTEMD_SYSTEM_RESERVED_PORTS_SCRIPTS);
+
 static const size_t len_systemd_mount_root = strlen(SYSTEMD_MOUNT_ROOT);
 static const size_t len_systemd_suffix = strlen(SYSTEMD_MOUNT_SUFFIX);
 static sd_bus *systemd_bus = NULL;

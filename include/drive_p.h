@@ -25,5 +25,5 @@
 #define DRIVE_SYSTEM_RESERVED_MARK              MOUNT_EXT_MARK
 #define DRIVE_SYSTEM_RESERVED_PORTS_SCRIPTS     "ports_scripts"
 
-static const size_t drive_len_reserved_mark = strlen(DRIVE_SYSTEM_RESERVED_MARK);
-static const unsigned int drive_len_reserved_ports_scripts = strlen(DRIVE_SYSTEM_RESERVED_PORTS_SCRIPTS);
+static const size_t len_drive_reserved_mark = strlen(DRIVE_SYSTEM_RESERVED_MARK);
+static const size_t len_drive_reserved_ports_scripts = strlen(DRIVE_SYSTEM_RESERVED_PORTS_SCRIPTS);

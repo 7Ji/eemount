@@ -69,17 +69,16 @@ static bool drive_scan(struct drive *drive, FILE *fp) {
             logging(LOGGING_WARNING, "Ignored system '%s' defined for drive '%s' since the name contains illegal character", line, drive->name);
             continue;
         }
-        if (len_line >= drive_len_reserved_mark) {
-            if (len_line == drive_len_reserved_ports_scripts) {
-                if (!strncmp(line, DRIVE_SYSTEM_RESERVED_PORTS_SCRIPTS, drive_len_reserved_ports_scripts)) {
-                    logging(LOGGING_WARNING, "Ignored system '"DRIVE_SYSTEM_RESERVED_PORTS_SCRIPTS"' for drive '%s' since it's reserved", drive->name);
-                    continue;
-                }
-            } else if (len_line == drive_len_reserved_mark) {
-                if (!strncmp(line, DRIVE_SYSTEM_RESERVED_MARK, drive_len_reserved_mark)) {
-                    logging(LOGGING_WARNING, "Ignored system '"DRIVE_SYSTEM_RESERVED_MARK"' for drive '%s' since it's reserved", drive->name);
-                    continue;
-                }
+        if (len_line == len_drive_reserved_ports_scripts) {
+            if (!strncmp(line, DRIVE_SYSTEM_RESERVED_PORTS_SCRIPTS, len_drive_reserved_ports_scripts)) {
+                logging(LOGGING_WARNING, "Ignored system '"DRIVE_SYSTEM_RESERVED_PORTS_SCRIPTS"' for drive '%s' since it's reserved", drive->name);
+                continue;
+            }
+        }
+        if (len_line == len_drive_reserved_mark) {
+            if (!strncmp(line, DRIVE_SYSTEM_RESERVED_MARK, len_drive_reserved_mark)) {
+                logging(LOGGING_WARNING, "Ignored system '"DRIVE_SYSTEM_RESERVED_MARK"' for drive '%s' since it's reserved", drive->name);
+                continue;
             }
         }
         if ((++(drive->count)) > drive->alloc_systems) {
@@ -233,9 +232,9 @@ struct drive_helper *drive_get_mounts() {
         if (drive_helper) {
             if (drive_helper->count > 1) {
                 qsort(drive_helper->drives, drive_helper->count, sizeof(struct drive), sort_compare_drive);
-                logging(LOGGING_DEBUG, "Sorted %d drives alphabetically", drive_helper->count);
+                logging(LOGGING_DEBUG, "Sorted %u drives alphabetically", drive_helper->count);
             }
-            logging(LOGGING_INFO, "Finished scanning external drives");
+            logging(LOGGING_INFO, "Found %u usable external drives", drive_helper->count);
             return drive_helper;
         }
     }

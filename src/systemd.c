@@ -138,7 +138,26 @@ struct systemd_mount_unit_helper *systemd_get_units() {
                 goto free_mounts;
             }
         }
+        if (len_system == len_systemd_reserved_mark) {
+            if (!strncmp(SYSTEMD_SYSTEM_RESERVED_MARK, dir_entry->d_name+len_systemd_mount_root, len_systemd_reserved_mark)) {
+                logging(LOGGING_WARNING, "Ignored systemd mount unit %s since the system it provides ("SYSTEMD_SYSTEM_RESERVED_MARK") is reserved", dir_entry->d_name);
+                continue;
+            }
+        }
+        if (len_system == len_systemd_reserved_ports_scripts) {
+            if (!strncmp(SYSTEMD_SYSTEM_RESERVED_PORTS_SCRIPTS, dir_entry->d_name+len_systemd_mount_root, len_systemd_reserved_ports_scripts)) {
+                logging(LOGGING_WARNING, "Ignored systemd mount unit %s since the system it provides ("SYSTEMD_SYSTEM_RESERVED_PORTS_SCRIPTS") is reserved", dir_entry->d_name);
+                continue;
+            }
+        }
         mount = helper->mounts + helper->count - 1;
+        if (len_system == 0) {
+            if (helper->root) {
+                logging(LOGGING_WARNING, "Multiple systemd units provided mount for roms root are found, only the first one will be used");
+                continue;
+            }
+            helper->root = mount;
+        }
         if ((mount->name = malloc((len+1)*sizeof(char))) == NULL) {
             logging(LOGGING_ERROR, "Failed to allocate memory for system mount unit's name");
             goto free_mounts;
@@ -148,15 +167,18 @@ struct systemd_mount_unit_helper *systemd_get_units() {
             logging(LOGGING_ERROR, "Failed to allocate memory for system mount unit's system name");
             goto free_mounts;
         }
-
-        if (len_system == 0) {
-            helper->root = helper->mounts + helper->count-1;
-        }
+        strcpy(mount->name, dir_entry->d_name);
+        strncpy(mount->system, dir_entry->d_name+len_systemd_mount_root, len_system);
+        mount->system[len_system] = '\0';
     }
-
-
-
-
+    if (helper) {
+        if (helper->count > 1) {
+            qsort(helper->mounts, helper->count, sizeof(struct systemd_mount_unit), sort_compare_systemd_mount_unit);
+            logging(LOGGING_DEBUG, "Sorted %d systemd mount units alphabetically", helper->count);
+        }
+        logging(LOGGING_DEBUG, "Found %u usable systemd mount units", helper->count);
+    }
+    closedir(dir);
     return helper;
 
 free_mounts:
