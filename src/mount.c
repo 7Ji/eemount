@@ -45,23 +45,88 @@ void mount_free_table(struct mount_table **table) {
 }
 
 bool mount_partition_eeroms(struct mount_table *table) {
+    // I'll just save the effort to check if table is null here
+    if (table == NULL) {
+        logging(LOGGING_FATAL, "Tried to call mount_partition_eeroms() with an empty table");
+        return false;
+    }
+    logging(LOGGING_INFO, "Trying to remount EEROMS onto "MOUNT_POINT_ROMS);
+    struct libmnt_context *cxt = mnt_new_context();
+    if (cxt == NULL) {
+        logging(LOGGING_ERROR, "Failed to allocate mount context");
+        return false;
+    }
     // Check if /storage/.update is mounted, if so, use that partition
     logging(LOGGING_INFO, "Trying to mount EEROMS back to '"MOUNT_POINT_ROMS"'");
     struct mount_entry *entry = mount_find_entry_by_mount_point(mount_point_update, table);
     if (entry) {
-        logging(LOGGING_INFO, "Found mount point '"MOUNT_POINT_UPDATE"', mount source: %s", entry->mount_source);
-        if (mount(entry->mount_source, mount_point_roms, entry->fstype, MS_NOATIME, entry->super_options)) {
-            logging(LOGGING_ERROR, "Failed to mount the partition %s");
+        logging(LOGGING_INFO, "'"MOUNT_POINT_UPDATE"' is mounted, using the underlying partition %s as EEROMS", entry->mount_source);
+        mnt_context_set_source(cxt, entry->mount_source);
+        mnt_context_set_options(cxt, entry->mount_options);
+        mnt_context_set_target(cxt, MOUNT_POINT_ROMS);
+        if (mnt_context_mount(cxt)) {
+            logging(LOGGING_ERROR, "Failed to mount the partition %s", entry->mount_source);
         } else {
+            mnt_free_context(cxt);
             return true;
         }
+        if (mnt_reset_context(cxt)) {
+            logging(LOGGING_ERROR, "Failed to reset mount context");
+            mnt_free_context(cxt);
+            if ((cxt = mnt_new_context()) == NULL) {
+                logging(LOGGING_ERROR, "Failed to allocate another mount context");
+                return false;
+            }
+        }
     }
-    char *name = blkid_evaluate_tag("LABEL", "EEROMS", NULL);
-    puts(name);
-    // libmnt_optmap();
-    // /storage/.update is not mounted, then check the drive providing /flash and /storage, get the 3rd partition of that drive. (If these two are on different drives, use the drive providing /flash, as it is mounted earlier during init than /storage)
-    
-    // Can't find /storage/.update in 
+    // /storage/.update is not mounted, then check the drive providing /flash and /storage, get the 3rd partition of that drive. (use /flash first, then /storage, as /flash is mounted earlier than /storage during init)
+    char mount_points[2][9] = {
+        "/flash",
+        "/storage"
+    };
+    size_t len_partition;
+    char *partition;
+    for (int i=0; i<2; ++i) {
+        if ((entry = mount_find_entry_by_mount_point(mount_points[i], table)) == NULL) {
+            logging(LOGGING_ERROR, "Can not find the partitions under /flash nor /storage");
+            continue;
+        }
+        if ((partition = strdup(entry->mount_source)) == NULL) {
+            logging(LOGGING_ERROR, "Failed to allocate memory for partition name");
+            continue;
+        }
+        len_partition = strlen(partition);
+        partition[len_partition-1] = '3';
+        mnt_context_set_source(cxt, partition);
+        mnt_context_set_mflags(cxt, MS_NOATIME);
+        mnt_context_set_target(cxt, MOUNT_POINT_ROMS);
+        if (mnt_context_mount(cxt)) {
+            logging(LOGGING_ERROR, "Failed to mount the partition %s", partition);
+        } else {
+            mnt_free_context(cxt);
+            return true;
+        }
+        if (mnt_reset_context(cxt)) {
+            logging(LOGGING_ERROR, "Failed to reset mount context");
+            mnt_free_context(cxt);
+            if ((cxt = mnt_new_context()) == NULL) {
+                logging(LOGGING_ERROR, "Failed to allocate another mount context");
+                return false;
+            }
+        }
+    }
+    // Can not find any, at least try to find any other partition with LABEL=EEROMS
+    mnt_context_set_source(cxt, "LABEL=EEROMS");
+    mnt_context_set_mflags(cxt, MS_NOATIME);
+    mnt_context_set_target(cxt, MOUNT_POINT_ROMS);
+    if (mnt_context_mount(cxt)) {
+        logging(LOGGING_ERROR, "Failed to mount LABEL=EEROMS");
+    } else {
+        mnt_free_context(cxt);
+        return true;
+    }
+    mnt_free_context(cxt);
+    logging(LOGGING_ERROR, "All tries to mount '"MOUNT_POINT_ROMS"' failed");
     return false;
 }
 
@@ -304,9 +369,9 @@ void umount_drive() {
 
 bool mount_prepare() {
     struct mount_table* table = mount_get_table();
-    struct mount_entry* entry;
     if (table) {
-        entry = mount_find_entry_by_mount_point(mount_point_roms, table);
+        struct mount_entry* entry = mount_find_entry_by_mount_point(mount_point_roms, table);
+        struct mount_entry* last = NULL;
         while (entry) {
             if (!mount_umount_entry_recursive(entry, table, 0)) {
                 mount_free_table(&table);
@@ -316,7 +381,24 @@ bool mount_prepare() {
             if ((table = mount_get_table()) == NULL) {
                 return false;
             }
+            last = entry;
             entry = mount_find_entry_by_mount_point(mount_point_roms, table);
+        }
+        if (last && ((entry = mount_find_entry_by_mount_point(mount_point_ext, table)) == NULL)) {
+            /* Make sure the EEROMS partition is mounted to /var/media/EEROMS */
+            struct libmnt_context *cxt = mnt_new_context();
+            if (cxt == NULL) {
+                logging(LOGGING_ERROR, "Failed to allocate memory for mount context");
+                mount_free_table(&table);
+                return false;
+            }
+            mnt_context_set_source(cxt, last->mount_source);
+            mnt_context_set_mflags(cxt, MS_NOATIME);
+            mnt_context_set_target(cxt, mount_point_ext);
+            if (mnt_context_mount(cxt)) {
+                mkdir();
+            }
+            mnt_free_context(cxt);
         }
         mount_free_table(&table);
         return true;
