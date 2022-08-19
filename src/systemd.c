@@ -45,13 +45,73 @@ bool systemd_is_active(char *path) {
 }
 
 
-bool systemd_start_unit(char *unit) {
+bool systemd_start_unit(const char *unit) {
     // Since we handle all these mount units by ourselves, overlapped enabled systemd mount units should be disabled during init:
     // rm -f /storage/.config/system.d/*.wants/storage-roms*.mount
-
-    sd_bus_error error = SD_BUS_ERROR_NULL;
-    sd_bus_message *reply = NULL;
-    sd_bus_call_method(systemd_bus, SYSTEMD_DESTINATION, SYSTEMD_PATH, SYSTEMD_INTERFACE_MANAGER, "StartUnit", &error, &reply, "ss", unit, "replace");
+    sd_bus_slot *slot _cleanup_(sd_bus_slot_unrefp) = NULL;
+    if (sd_bus_match_signal(systemd_bus, &slot, SYSTEMD_DESTINATION, SYSTEMD_PATH, SYSTEMD_INTERFACE_MANAGER, "JobRemoved", NULL, NULL) < 0) {
+        logging(LOGGING_ERROR, "Failed to match systemd signal, have not started job yet");
+        return false;
+    }
+    sd_bus_error error _cleanup_(sd_bus_error_free) = SD_BUS_ERROR_NULL;
+    sd_bus_message *reply _cleanup_(sd_bus_message_unrefp) = NULL;
+    if (sd_bus_call_method(systemd_bus, SYSTEMD_DESTINATION, SYSTEMD_PATH, SYSTEMD_INTERFACE_MANAGER, "StartUnit", &error, &reply, "ss", unit, "replace") < 0) {
+        logging(LOGGING_ERROR, "Failed to call StartUnit method of systemd, error: ", error.message);
+        return false;
+    }
+    if (reply == NULL) {
+        logging(LOGGING_ERROR, "Got no reply from systemd, dont know what job it started, assuming failed");
+        return false;
+    }
+    char *job;
+    if (sd_bus_message_read(reply, "o", &job) < 0) {
+        logging(LOGGING_ERROR, "Failed to read systemd message, assuming failed");
+        return false;
+    }
+    if (job == NULL) {
+        logging(LOGGING_ERROR, "Got no valid job object path, can not confirm if started successfully, assuming failed");
+        return false;
+    }
+    uint32_t job_id = strtoul(job + len_systemd_job_prefix, NULL, 10);
+    logging(LOGGING_INFO, "Started systemd job '%"PRIu32"', waiting for it to finish", job_id);
+    uint32_t id;
+    char *result;
+    int failed = 0;
+    sd_bus_message *msg _cleanup_(sd_bus_message_unrefp) = NULL;
+    for (int i=0; i<SYSTEMD_START_TIMEOUT; ++i) {
+        while (sd_bus_process(systemd_bus, &msg)) {
+            logging(LOGGING_DEBUG, "Processing sd_bus message...");
+            if (msg) {
+                if (sd_bus_message_read(msg, "uoss", &id, NULL, NULL, &result) < 0) {
+                    logging(LOGGING_WARNING, "Failed to read systemd message");
+                    if (++failed == 3) {
+                        logging(LOGGING_ERROR, "Failed to read for 3 times, assuming job failed");
+                        return false;
+                    }
+                    continue;
+                }
+                logging(LOGGING_DEBUG, "Got message, ID: %"PRIu32, id);
+                if (id == job_id) {
+                    logging(LOGGING_INFO, "Job finished, checking result");
+                    if (result) {
+                        if (strcmp(result, "done")) {
+                            logging(LOGGING_ERROR, "Job failed");
+                            return false;
+                        } else {
+                            logging(LOGGING_INFO, "Job finished successfully");
+                            return true;
+                        }
+                    } else {
+                        logging(LOGGING_ERROR, "Job result invalid, assuming failed");
+                        return false;
+                    }
+                }
+            }
+        }
+        sd_bus_wait(systemd_bus, SYSTEMD_START_TIMEOUT);
+        sleep(1);
+    }
+    logging(LOGGING_WARNING, "Waited timeout after %d seconds, assumming job failed", SYSTEMD_START_TIMEOUT);
     return false;
 }
 

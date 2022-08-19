@@ -57,7 +57,8 @@ bool mount_partition_eeroms(struct mount_table *table) {
         }
     }
     char *name = blkid_evaluate_tag("LABEL", "EEROMS", NULL);
-    libmnt_optmap();
+    puts(name);
+    // libmnt_optmap();
     // /storage/.update is not mounted, then check the drive providing /flash and /storage, get the 3rd partition of that drive. (If these two are on different drives, use the drive providing /flash, as it is mounted earlier during init than /storage)
     
     // Can't find /storage/.update in 

@@ -1,14 +1,27 @@
 #ifndef MULTICALL
 // #include "systemd.h"
 // #include "mount.h"
-#include "block.h"
+// #include "block.h"
+#include "systemd.h"
 int main() {
-    if (block_initialize()) {
-        puts("hi");
-        block_list();
-        puts("hi");
-        block_free();
+    if (!systemd_init_bus()) {
+        puts("Failed to start system bus");
+        return 1;
     }
+    if (systemd_start_unit("storage-roms.mount")) {
+        puts("STarted");
+    } else {
+        puts("Failed");
+    }
+
+    systemd_release();
+    // if (block_initialize()) {
+    //     puts("hi");
+    //     block_list();
+    //     puts("hi");
+    //     block_free();
+    // }
+    
 
     // if (!systemd_init_bus()) {
     //     puts("Cannot initialize systemd");
