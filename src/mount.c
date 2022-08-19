@@ -396,7 +396,7 @@ bool mount_prepare() {
             mnt_context_set_mflags(cxt, MS_NOATIME);
             mnt_context_set_target(cxt, mount_point_ext);
             if (mnt_context_mount(cxt)) {
-                mkdir();
+                // mkdir();
             }
             mnt_free_context(cxt);
         }

@@ -149,3 +149,53 @@ void util_unesacpe_mountinfo_in_place(char *escaped) {
     }
     escaped[len-diff] = '\0';
 }
+
+bool util_mkdir(const char *path, mode_t mode) {
+    errno = 0;
+    if (mkdir(path, mode) == 0) {
+        logging(LOGGING_DEBUG, "Successfully created directory '%s'", path);
+        return true;
+    }
+    if (errno != EEXIST) {
+        logging(LOGGING_ERROR, "Failed to create directory '%s' due to system failure", path);
+        return false;
+    }
+    struct stat stat_path;
+    if (stat(path, &stat_path)) {
+        logging(LOGGING_ERROR, "Failed to check existing path '%s'", path);
+        return false;
+    }
+    if (!S_ISDIR(stat_path.st_mode)) {
+        logging(LOGGING_ERROR, "Existing path '%s' is not directory", path);
+        return false;
+    }
+    logging(LOGGING_DEBUG, "Path '%s' exists and is directory, no need to create it", path);
+    return true;
+}
+
+bool util_mkdir_recursive(const char *path, mode_t mode) {
+    char *_path = strdup(path);
+    if (_path == NULL) {
+        logging(LOGGING_ERROR, "Failed to duplicate path '%s' for mkdir", path);
+        return false;
+    }
+    for (char *p = _path + 1; *p; ++p) {
+        if (*p == '/') {
+            *p = '\0';
+            if (!util_mkdir(_path, mode)) {
+                free(_path);
+                logging(LOGGING_ERROR, "Failed to mkdir '%s' recursively", path);
+                return false;
+            }
+            *p = '/';
+        }
+    }
+    if (!util_mkdir(_path, mode)) {
+        free(_path);
+        logging(LOGGING_ERROR, "Failed to mkdir '%s' recursively", path);
+        return false;
+    }
+    free(_path);
+    logging(LOGGING_INFO, "Successfully mkdir '%s' recursively", path);
+    return true;
+}

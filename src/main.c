@@ -3,24 +3,48 @@
 // #include "mount.h"
 // #include "block.h"
 #include "systemd.h"
+// #include "util.h"
+// #include "eeconfig.h"
+// #include "drive.h"
 int main() {
     if (!systemd_init_bus()) {
-        puts("Failed to start system bus");
         return 1;
     }
-    if (systemd_reload()) {
-        puts("reloaded");
-    } else {
-        puts("Failed to reload");
-        systemd_release();
-        return 1;
-    }
-    if (systemd_start_unit("storage-roms.mount")) {
-        puts("Started");
-    } else {
-        puts("Failed");
-    }
+    systemd_start_unit_no_wait("storage-roms.mount");
     systemd_release();
+    // util_mkdir_recursive("/tmp/drive/media/nes", 0755);
+    // if (!eeconfig_initialize()) {
+    //     puts("Failed to initialize eeconfig");
+    //     return 1;
+    // }
+    // struct drive_helper *dhelper = drive_get_mounts();
+    // if (dhelper) {
+    //     drive_helper_free(&dhelper);
+    // }
+    // struct systemd_mount_unit_helper *uhelper = systemd_get_units();
+    // if (uhelper) {
+    //     for (unsigned int i=0; i<uhelper->count; ++i) {
+    //         puts((uhelper->mounts+i)->name);
+    //         puts((uhelper->mounts+i)->system);
+    //     }
+    // }
+    // if (!systemd_init_bus()) {
+    //     puts("Failed to start system bus");
+    //     return 1;
+    // }
+    // if (systemd_reload()) {
+    //     puts("reloaded");
+    // } else {
+    //     puts("Failed to reload");
+    //     systemd_release();
+    //     return 1;
+    // }
+    // if (systemd_start_unit("storage-roms.mount")) {
+    //     puts("Started");
+    // } else {
+    //     puts("Failed");
+    // }
+    // systemd_release();
     // if (block_initialize()) {
     //     puts("hi");
     //     block_list();

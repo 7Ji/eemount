@@ -6,6 +6,7 @@
 #include "logging.h"
 #include "alloc.h"
 #include "sort.h"
+#include "util.h"
 
 #define SYSTEMD_DESTINATION         "org.freedesktop.systemd1"
 #define SYSTEMD_INTERFACE_UNIT      SYSTEMD_DESTINATION".Unit"
@@ -26,6 +27,7 @@
 static const size_t len_systemd_reserved_mark = strlen(SYSTEMD_SYSTEM_RESERVED_MARK);
 static const unsigned int len_systemd_reserved_ports_scripts = strlen(SYSTEMD_SYSTEM_RESERVED_PORTS_SCRIPTS);
 
+static const size_t len_systemd_unit_dir = strlen(SYSTEMD_UNIT_DIR);
 static const size_t len_systemd_mount_root = strlen(SYSTEMD_MOUNT_ROOT);
 static const size_t len_systemd_suffix = strlen(SYSTEMD_MOUNT_SUFFIX);
 static const size_t len_systemd_job_prefix = strlen(SYSTEMD_PATH_JOB) + 1; // 1 for the extra /

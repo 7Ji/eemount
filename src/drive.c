@@ -44,6 +44,8 @@ static bool drive_scan(struct drive *drive, FILE *fp) {
     bool illegal_char;
     size_t size_line = 0;
     size_t len_line;
+    size_t len_drive;
+    char *path = NULL;
     while (getline(&line, &size_line, fp) != -1) {
         len_line = strcspn(line, "\r\n");
         if (len_line == 0) {
@@ -53,7 +55,7 @@ static bool drive_scan(struct drive *drive, FILE *fp) {
             }
             continue;
         }
-        if (len_line > 256) {
+        if (len_line > 255) {
             logging(LOGGING_WARNING, "Line ignored as it is too long, please fix the mark file for drive '%s' and fix the following line: %s", drive->name, line);
             continue;
         }
@@ -81,6 +83,19 @@ static bool drive_scan(struct drive *drive, FILE *fp) {
                 continue;
             }
         }
+        if (path == NULL) {
+            len_drive = strlen(drive->name);
+            if ((path = malloc((len_mount_ext_parent + len_drive + len_mount_ext_roms_parent + 259 )*sizeof(char))) == NULL) {
+                logging(LOGGING_ERROR, "Can not allocate memory for full path of external drive system");
+                goto free_systems;
+            }
+        }
+        snprintf(path, len_mount_ext_parent + len_drive + len_mount_ext_roms_parent + len_line + 4, MOUNT_EXT_PARENT"/%s/"MOUNT_EXT_ROMS_PARENT"/%s", drive->name, line);
+        logging(LOGGING_DEBUG, "Checking if external system directory '%s' exists and create it if neccessary", path);
+        if (!util_mkdir_recursive(path, 0755)) {
+            logging(LOGGING_WARNING, "Failed to create/verify directory '%s', omitting corresponding system");
+            continue;
+        }
         if ((++(drive->count)) > drive->alloc_systems) {
             if (drive->alloc_systems) {
                 (drive->alloc_systems) *= ALLOC_MULTIPLIER;
@@ -93,20 +108,21 @@ static bool drive_scan(struct drive *drive, FILE *fp) {
             if (buffer) {
                 drive->systems = buffer;
             } else {
-                --(drive->count);
                 logging(LOGGING_ERROR, "Can not create/resize systems array when scanning drive '%s'", drive->name);
-                goto free_systems;
+                goto free_system;
             }
         }
         system = (drive->systems) + (drive->count) - 1;
         if ((*system = malloc((len_line + 1)*sizeof(char))) == NULL) {
-            --(drive->count);
             logging(LOGGING_ERROR, "Failed to allocate memory for new system name '%s' when scanning drive '%s'", line, drive->name);
-            goto free_systems;
+            goto free_system;
         } 
         strncpy(*system, line, len_line);
         (*system)[len_line] = '\0';
         logging(LOGGING_DEBUG, "Drive '%s': Found system '%s'", drive->name, *system);
+    }
+    if (path) {
+        free(path);
     }
     free(line);
     logging(LOGGING_DEBUG, "Drive '%s': Found %d system(s)", drive->name, drive->count);
@@ -116,6 +132,9 @@ static bool drive_scan(struct drive *drive, FILE *fp) {
     }
     return true;
 
+free_system:
+    free(path);
+    --(drive->count);
 free_systems:
     for (unsigned int i=0; i<drive->count; ++i) {
         free(drive->systems[i]);
@@ -138,6 +157,29 @@ void drive_helper_free(struct drive_helper **drive_helper) {
     }
     alloc_free_if_used((void **)&((*drive_helper)->drives));
     alloc_free_if_used((void**)drive_helper);
+}
+
+static bool drive_is_name_invalid(const char *name) {
+    switch (name[0]) {
+        case '\0':
+            return true;
+        case '.':
+            switch (name[1]) {
+                case '\0': // .
+                    return true;
+                case '.':   
+                    if (name[2] == '\0') {      // ..
+                        return true;
+                    }
+            }
+            break;
+        case 'E':
+            if (!strcmp(name+1, DRIVE_NAME_RESERVED_EEROMS+1)) { // EEROMS
+                return true;
+            }
+            break;
+    }
+    return false;
 }
 
 struct drive_helper *drive_get_mounts() {
@@ -174,11 +216,11 @@ struct drive_helper *drive_get_mounts() {
             return NULL;
         }
         while ((dir_entry = readdir(dir))) {
-            if ((dir_entry->d_type != DT_DIR) || !strcmp(dir_entry->d_name, ".") || !strcmp(dir_entry->d_name, "..") || (target && strcmp(dir_entry->d_name, target)) || ((fp = drive_check(dir_entry->d_name)) == NULL)) {
+            if ((dir_entry->d_type != DT_DIR) || drive_is_name_invalid(dir_entry->d_name) || (target && strcmp(dir_entry->d_name, target)) || ((fp = drive_check(dir_entry->d_name)) == NULL)) {
                 /*
                 Skip the entry in case of:
                     1. The entry is not directory
-                    2. The entry is either . (/var/media itself) or .. (/var)
+                    2. The entry is either . (/var/media itself) or .. (/var) or EEROMS
                     3. The entry's name is different from global.externalmount, if it is set (If it's empty then we ignore this)
                     4. The markfile under it can't be opened (either becase it can't be opened or does not exist)
                 */

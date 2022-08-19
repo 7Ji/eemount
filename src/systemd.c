@@ -53,6 +53,29 @@ bool systemd_reload() {
     return true;
 }
 
+// void systemd_prepare_mount(struct systemd_mount_unit *unit) {
+//     char *path;
+//     size_t len_unit = strlen(unit->name);
+//     size_t len_path = len_systemd_unit_dir + len_unit + 2; // 1 for /, 1 for \0
+//     snprintf(path, len_path, SYSTEMD_UNIT_DIR)
+//     // Ge
+
+
+
+// }
+
+bool systemd_start_unit_no_wait(const char *unit) {
+    // This should only be used for systems. 
+    logging(LOGGING_DEBUG, "Starting systemd unit '%s', no wait", unit);
+    sd_bus_error error _cleanup_(sd_bus_error_free) = SD_BUS_ERROR_NULL;
+    if (sd_bus_call_method(systemd_bus, SYSTEMD_DESTINATION, SYSTEMD_PATH, SYSTEMD_INTERFACE_MANAGER, "StartUnit", &error, NULL, "ss", unit, "replace") < 0) {
+        logging(LOGGING_ERROR, "Failed to call StartUnit() method, error: %s", error.message);
+        return false;
+    }
+    return true;
+}
+
+
 bool systemd_start_unit(const char *unit) {
     // Since we handle all these mount units by ourselves, overlapped enabled systemd mount units should be disabled during init:
     // rm -f /storage/.config/system.d/*.wants/storage-roms*.mount
@@ -64,7 +87,7 @@ bool systemd_start_unit(const char *unit) {
     sd_bus_error error _cleanup_(sd_bus_error_free) = SD_BUS_ERROR_NULL;
     sd_bus_message *reply _cleanup_(sd_bus_message_unrefp) = NULL;
     if (sd_bus_call_method(systemd_bus, SYSTEMD_DESTINATION, SYSTEMD_PATH, SYSTEMD_INTERFACE_MANAGER, "StartUnit", &error, &reply, "ss", unit, "replace") < 0) {
-        logging(LOGGING_ERROR, "Failed to call StartUnit method of systemd, error: ", error.message);
+        logging(LOGGING_ERROR, "Failed to call StartUnit method of systemd, error: %s", error.message);
         return false;
     }
     if (reply == NULL) {
@@ -168,6 +191,7 @@ struct systemd_mount_unit_helper *systemd_get_units() {
     struct systemd_mount_unit *mount, *buffer;
     size_t len;
     size_t len_system;
+    bool root;
     while ((dir_entry = readdir(dir))) {
         switch (dir_entry->d_type) {
             case DT_REG:
@@ -185,7 +209,6 @@ struct systemd_mount_unit_helper *systemd_get_units() {
         if (strcmp(dir_entry->d_name + len - len_systemd_suffix, SYSTEMD_MOUNT_SUFFIX) || strncmp(dir_entry->d_name, SYSTEMD_MOUNT_ROOT, len_systemd_mount_root)) {
             continue;
         }
-        len_system = len - len_systemd_suffix - len_systemd_mount_root;
         if (helper == NULL) {
             if ((helper = malloc(sizeof(struct systemd_mount_unit_helper))) == NULL) {
                 logging(LOGGING_ERROR, "Failed to allocate memory for systemd mount unit helper!");
@@ -209,26 +232,31 @@ struct systemd_mount_unit_helper *systemd_get_units() {
                 goto free_mounts;
             }
         }
-        if (len_system == len_systemd_reserved_mark) {
-            if (!strncmp(SYSTEMD_SYSTEM_RESERVED_MARK, dir_entry->d_name+len_systemd_mount_root, len_systemd_reserved_mark)) {
-                logging(LOGGING_WARNING, "Ignored systemd mount unit %s since the system it provides ("SYSTEMD_SYSTEM_RESERVED_MARK") is reserved", dir_entry->d_name);
-                continue;
+        len_system = len - len_systemd_suffix - len_systemd_mount_root;
+        if (len_system) { 
+            --len_system;
+            if (len_system == len_systemd_reserved_mark) {
+                if (!strncmp(SYSTEMD_SYSTEM_RESERVED_MARK, dir_entry->d_name+len_systemd_mount_root+1, len_systemd_reserved_mark)) {
+                    logging(LOGGING_WARNING, "Ignored systemd mount unit %s since the system it provides ("SYSTEMD_SYSTEM_RESERVED_MARK") is reserved", dir_entry->d_name);
+                    continue;
+                }
             }
-        }
-        if (len_system == len_systemd_reserved_ports_scripts) {
-            if (!strncmp(SYSTEMD_SYSTEM_RESERVED_PORTS_SCRIPTS, dir_entry->d_name+len_systemd_mount_root, len_systemd_reserved_ports_scripts)) {
-                logging(LOGGING_WARNING, "Ignored systemd mount unit %s since the system it provides ("SYSTEMD_SYSTEM_RESERVED_PORTS_SCRIPTS") is reserved", dir_entry->d_name);
-                continue;
+            if (len_system == len_systemd_reserved_ports_scripts) {
+                if (!strncmp(SYSTEMD_SYSTEM_RESERVED_PORTS_SCRIPTS, dir_entry->d_name+len_systemd_mount_root+1, len_systemd_reserved_ports_scripts)) {
+                    logging(LOGGING_WARNING, "Ignored systemd mount unit %s since the system it provides ("SYSTEMD_SYSTEM_RESERVED_PORTS_SCRIPTS") is reserved", dir_entry->d_name);
+                    continue;
+                }
             }
-        }
-        mount = helper->mounts + helper->count - 1;
-        if (len_system == 0) {
+            root = false;
+        } else {
             if (helper->root) {
                 logging(LOGGING_WARNING, "Multiple systemd units provided mount for roms root are found, only the first one will be used");
                 continue;
             }
             helper->root = mount;
-        }
+            root = true;
+        }      
+        mount = helper->mounts + helper->count - 1;
         if ((mount->name = malloc((len+1)*sizeof(char))) == NULL) {
             logging(LOGGING_ERROR, "Failed to allocate memory for system mount unit's name");
             goto free_mounts;
@@ -239,7 +267,7 @@ struct systemd_mount_unit_helper *systemd_get_units() {
             goto free_mounts;
         }
         strcpy(mount->name, dir_entry->d_name);
-        strncpy(mount->system, dir_entry->d_name+len_systemd_mount_root, len_system);
+        strncpy(mount->system, dir_entry->d_name+len_systemd_mount_root+1-root, len_system);
         mount->system[len_system] = '\0';
     }
     if (helper) {

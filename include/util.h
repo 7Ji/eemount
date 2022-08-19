@@ -1,6 +1,7 @@
 #ifndef HAVE_UTIL_H
 #define HAVE_UTIL_H
 #include "common.h"
+#include <stdbool.h>
 
 /**
  * @brief Convert an unsigned long to unsigned integer safely, limit the range between 0~UINT_MAX
@@ -27,4 +28,9 @@ long util_file_get_length_and_restart(FILE *fp);
 char *util_unescape_mountinfo(char *escaped);
 
 void util_unesacpe_mountinfo_in_place(char *escaped);
+
+bool util_mkdir(const char *path, mode_t mode);
+
+bool util_mkdir_recursive(const char *path, mode_t mode);
+
 #endif

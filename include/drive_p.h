@@ -25,5 +25,9 @@
 #define DRIVE_SYSTEM_RESERVED_MARK              MOUNT_EXT_MARK
 #define DRIVE_SYSTEM_RESERVED_PORTS_SCRIPTS     "ports_scripts"
 
+#define DRIVE_NAME_RESERVED_EEROMS              "EEROMS"
+
+static const size_t len_mount_ext_parent = strlen(MOUNT_EXT_PARENT);
+static const size_t len_mount_ext_roms_parent = strlen(MOUNT_EXT_ROMS_PARENT);
 static const size_t len_drive_reserved_mark = strlen(DRIVE_SYSTEM_RESERVED_MARK);
 static const size_t len_drive_reserved_ports_scripts = strlen(DRIVE_SYSTEM_RESERVED_PORTS_SCRIPTS);
