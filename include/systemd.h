@@ -93,6 +93,7 @@ struct systemd_mount_helper {
     unsigned int count;
 };
 
+bool systemd_reload();
 bool systemd_start_unit(const char *unit);
 /**
  * @brief Get all systemd mounts under /storage/roms

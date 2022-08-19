@@ -8,12 +8,18 @@ int main() {
         puts("Failed to start system bus");
         return 1;
     }
+    if (systemd_reload()) {
+        puts("reloaded");
+    } else {
+        puts("Failed to reload");
+        systemd_release();
+        return 1;
+    }
     if (systemd_start_unit("storage-roms.mount")) {
-        puts("STarted");
+        puts("Started");
     } else {
         puts("Failed");
     }
-
     systemd_release();
     // if (block_initialize()) {
     //     puts("hi");

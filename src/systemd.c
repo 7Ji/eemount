@@ -44,6 +44,14 @@ bool systemd_is_active(char *path) {
     }
 }
 
+bool systemd_reload() {
+    sd_bus_error error _cleanup_(sd_bus_error_free) = SD_BUS_ERROR_NULL;
+    if (sd_bus_call_method(systemd_bus, SYSTEMD_DESTINATION, SYSTEMD_PATH, SYSTEMD_INTERFACE_MANAGER, "Reload",  &error, NULL, NULL) < 0) {
+        logging(LOGGING_ERROR, "Failed to call Reload method, error: %s", error.message);
+        return false;
+    }
+    return true;
+}
 
 bool systemd_start_unit(const char *unit) {
     // Since we handle all these mount units by ourselves, overlapped enabled systemd mount units should be disabled during init:
