@@ -44,6 +44,26 @@ void mount_free_table(struct mount_table **table) {
     }
 }
 
+bool mount_partition_eeroms(struct mount_table *table) {
+    // Check if /storage/.update is mounted, if so, use that partition
+    logging(LOGGING_INFO, "Trying to mount EEROMS back to '"MOUNT_POINT_ROMS"'");
+    struct mount_entry *entry = mount_find_entry_by_mount_point(mount_point_update, table);
+    if (entry) {
+        logging(LOGGING_INFO, "Found mount point '"MOUNT_POINT_UPDATE"', mount source: %s", entry->mount_source);
+        if (mount(entry->mount_source, mount_point_roms, entry->fstype, MS_NOATIME, entry->super_options)) {
+            logging(LOGGING_ERROR, "Failed to mount the partition %s");
+        } else {
+            return true;
+        }
+    }
+    char *name = blkid_evaluate_tag("LABEL", "EEROMS", NULL);
+    libmnt_optmap();
+    // /storage/.update is not mounted, then check the drive providing /flash and /storage, get the 3rd partition of that drive. (If these two are on different drives, use the drive providing /flash, as it is mounted earlier during init than /storage)
+    
+    // Can't find /storage/.update in 
+    return false;
+}
+
 struct mount_table* mount_get_table() {
     struct mount_table *table = malloc(sizeof(struct mount_table));
     if (table == NULL) {
