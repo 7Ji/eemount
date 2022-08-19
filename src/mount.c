@@ -44,74 +44,81 @@ void mount_free_table(struct mount_table **table) {
     }
 }
 
-bool mount_partition_eeroms(struct mount_table *table) {
-    // I'll just save the effort to check if table is null here
-    if (table == NULL) {
-        logging(LOGGING_FATAL, "Tried to call mount_partition_eeroms() with an empty table");
-        return false;
-    }
-    logging(LOGGING_INFO, "Trying to remount EEROMS onto "MOUNT_POINT_ROMS);
+bool mount_partition_eeroms() {
+    struct mount_table *table = mount_get_table();
+    // if (table == NULL) {
+    //     logging(LOGGING_FATAL, "Failed to get current mount table");
+    //     return false;
+    // }
     struct libmnt_context *cxt = mnt_new_context();
     if (cxt == NULL) {
         logging(LOGGING_ERROR, "Failed to allocate mount context");
         return false;
     }
-    // Check if /storage/.update is mounted, if so, use that partition
     logging(LOGGING_INFO, "Trying to mount EEROMS back to '"MOUNT_POINT_ROMS"'");
-    struct mount_entry *entry = mount_find_entry_by_mount_point(mount_point_update, table);
-    if (entry) {
-        logging(LOGGING_INFO, "'"MOUNT_POINT_UPDATE"' is mounted, using the underlying partition %s as EEROMS", entry->mount_source);
-        mnt_context_set_source(cxt, entry->mount_source);
-        mnt_context_set_options(cxt, entry->mount_options);
-        mnt_context_set_target(cxt, MOUNT_POINT_ROMS);
-        if (mnt_context_mount(cxt)) {
-            logging(LOGGING_ERROR, "Failed to mount the partition %s", entry->mount_source);
-        } else {
-            mnt_free_context(cxt);
-            return true;
-        }
-        if (mnt_reset_context(cxt)) {
-            logging(LOGGING_ERROR, "Failed to reset mount context");
-            mnt_free_context(cxt);
-            if ((cxt = mnt_new_context()) == NULL) {
-                logging(LOGGING_ERROR, "Failed to allocate another mount context");
-                return false;
+    if (table) {
+        // logging(LOGGING_INFO, "Trying to remount EEROMS onto "MOUNT_POINT_ROMS);
+        // struct libmnt_context *cxt = mnt_new_context();
+        // if (cxt == NULL) {
+        //     logging(LOGGING_ERROR, "Failed to allocate mount context");
+        //     return false;
+        // }
+        // Check if /storage/.update is mounted, if so, use that partition
+        struct mount_entry *entry = mount_find_entry_by_mount_point(mount_point_update, table);
+        if (entry) {
+            logging(LOGGING_INFO, "'"MOUNT_POINT_UPDATE"' is mounted, using the underlying partition %s as EEROMS", entry->mount_source);
+            mnt_context_set_source(cxt, entry->mount_source);
+            mnt_context_set_options(cxt, entry->mount_options);
+            mnt_context_set_target(cxt, MOUNT_POINT_ROMS);
+            if (mnt_context_mount(cxt)) {
+                logging(LOGGING_ERROR, "Failed to mount the partition %s", entry->mount_source);
+            } else {
+                mnt_free_context(cxt);
+                return true;
+            }
+            if (mnt_reset_context(cxt)) {
+                logging(LOGGING_ERROR, "Failed to reset mount context");
+                mnt_free_context(cxt);
+                if ((cxt = mnt_new_context()) == NULL) {
+                    logging(LOGGING_ERROR, "Failed to allocate another mount context");
+                    return false;
+                }
             }
         }
-    }
-    // /storage/.update is not mounted, then check the drive providing /flash and /storage, get the 3rd partition of that drive. (use /flash first, then /storage, as /flash is mounted earlier than /storage during init)
-    char mount_points[2][9] = {
-        "/flash",
-        "/storage"
-    };
-    size_t len_partition;
-    char *partition;
-    for (int i=0; i<2; ++i) {
-        if ((entry = mount_find_entry_by_mount_point(mount_points[i], table)) == NULL) {
-            logging(LOGGING_ERROR, "Can not find the partitions under /flash nor /storage");
-            continue;
-        }
-        if ((partition = strdup(entry->mount_source)) == NULL) {
-            logging(LOGGING_ERROR, "Failed to allocate memory for partition name");
-            continue;
-        }
-        len_partition = strlen(partition);
-        partition[len_partition-1] = '3';
-        mnt_context_set_source(cxt, partition);
-        mnt_context_set_mflags(cxt, MS_NOATIME);
-        mnt_context_set_target(cxt, MOUNT_POINT_ROMS);
-        if (mnt_context_mount(cxt)) {
-            logging(LOGGING_ERROR, "Failed to mount the partition %s", partition);
-        } else {
-            mnt_free_context(cxt);
-            return true;
-        }
-        if (mnt_reset_context(cxt)) {
-            logging(LOGGING_ERROR, "Failed to reset mount context");
-            mnt_free_context(cxt);
-            if ((cxt = mnt_new_context()) == NULL) {
-                logging(LOGGING_ERROR, "Failed to allocate another mount context");
-                return false;
+        // /storage/.update is not mounted, then check the drive providing /flash and /storage, get the 3rd partition of that drive. (use /flash first, then /storage, as /flash is mounted earlier than /storage during init)
+        char mount_points[2][9] = {
+            "/flash",
+            "/storage"
+        };
+        size_t len_partition;
+        char *partition;
+        for (int i=0; i<2; ++i) {
+            if ((entry = mount_find_entry_by_mount_point(mount_points[i], table)) == NULL) {
+                logging(LOGGING_ERROR, "Can not find the partitions under /flash nor /storage");
+                continue;
+            }
+            if ((partition = strdup(entry->mount_source)) == NULL) {
+                logging(LOGGING_ERROR, "Failed to allocate memory for partition name");
+                continue;
+            }
+            len_partition = strlen(partition);
+            partition[len_partition-1] = '3';
+            mnt_context_set_source(cxt, partition);
+            mnt_context_set_mflags(cxt, MS_NOATIME);
+            mnt_context_set_target(cxt, MOUNT_POINT_ROMS);
+            if (mnt_context_mount(cxt)) {
+                logging(LOGGING_ERROR, "Failed to mount the partition %s", partition);
+            } else {
+                mnt_free_context(cxt);
+                return true;
+            }
+            if (mnt_reset_context(cxt)) {
+                logging(LOGGING_ERROR, "Failed to reset mount context");
+                mnt_free_context(cxt);
+                if ((cxt = mnt_new_context()) == NULL) {
+                    logging(LOGGING_ERROR, "Failed to allocate another mount context");
+                    return false;
+                }
             }
         }
     }
@@ -405,4 +412,42 @@ bool mount_prepare() {
     } else {
         return false;
     }
+}
+
+bool mount_root(struct systemd_mount_unit_helper *shelper, struct drive_helper *dhelper) {
+    if (!util_mkdir_recursive(mount_point_roms, 0777)) {
+        logging(LOGGING_ERROR, "Can not create/valid directory '"MOUNT_POINT_ROMS"', all mount operations cancelled");
+        return false;
+    }
+    if (shelper->root && systemd_start_unit(shelper->root->name)) {
+        // Only one providing /storage/roms, that is storage-roms.mount
+        return true;
+    }
+    char *path = NULL;
+    for (unsigned i=0; i<dhelper->count; ++i) {
+        if ((dhelper->drives+i)->count == 0) { // Multiple can provide /storage/roms, we go alphabetically
+            if (path == NULL) {
+                path = malloc();
+            }
+            if (!mount((dhelper->drives+i)->name, mount_point_roms, NULL, MS_BIND, NULL)) {
+                free(path);
+                return true;
+            }
+        }
+    }
+    if (path) {
+        free(path);
+    }
+    if (mount_partition_eeroms()) {
+        return true;
+    }
+    return false;
+}
+
+bool mount_systems() {
+
+}
+
+bool mount_ports_scripts() {
+
 }
