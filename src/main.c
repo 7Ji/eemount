@@ -2,16 +2,18 @@
 // #include "systemd.h"
 // #include "mount.h"
 // #include "block.h"
-#include "systemd.h"
+// #include "systemd.h"
 // #include "util.h"
 // #include "eeconfig.h"
 // #include "drive.h"
+#include "mount.h"
 int main() {
-    if (!systemd_init_bus()) {
-        return 1;
-    }
-    systemd_start_unit_no_wait("storage-roms.mount");
-    systemd_release();
+    mount_ports_scripts();
+    // if (!systemd_init_bus()) {
+    //     return 1;
+    // }
+    // systemd_start_unit_no_wait("storage-roms.mount");
+    // systemd_release();
     // util_mkdir_recursive("/tmp/drive/media/nes", 0755);
     // if (!eeconfig_initialize()) {
     //     puts("Failed to initialize eeconfig");

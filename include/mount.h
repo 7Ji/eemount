@@ -113,4 +113,5 @@ struct mount_table* mount_get_table();
 
 struct mount_helper *mount_get_systems(struct systemd_mount_helper *systemd_helper, struct drive_helper *drive_helper);
 bool mount_prepare();
+bool mount_ports_scripts();
 #endif
