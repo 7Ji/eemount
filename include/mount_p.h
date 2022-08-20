@@ -10,6 +10,7 @@
 #include "sort.h"
 #include "util.h"
 #include "alloc.h"
+#include "drive.h"
 
 #define MOUNT_MOUNTINFO     "/proc/self/mountinfo"
 #define MOUNT_STORAGE       "/storage"

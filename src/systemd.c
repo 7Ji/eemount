@@ -238,12 +238,13 @@ struct mount_finished_helper *systemd_start_unit_systems(struct systemd_mount_un
                             }
                             if (++(mhelper->count) > mhelper->alloc_systems) {
                                 mhelper->alloc_systems *= ALLOC_MULTIPLIER;
-                                if ((buffer = realloc(mhelper->systems, sizeof(struct mount_system)*(mhelper->alloc_systems))) == NULL) {
+                                if ((buffer = realloc(mhelper->systems, sizeof(char *) * (mhelper->alloc_systems))) == NULL) {
                                     logging(LOGGING_ERROR, "Failed to reallocate memory for mounted systems");
                                     free(mhelper->systems);
                                     free(mhelper);
                                     return NULL;
                                 }
+                                mhelper->systems = buffer;
                             }
                             mhelper->systems[mhelper->count - 1] = job->system;
                         }
@@ -319,6 +320,22 @@ static char *systemd_system_from_name(const char *name) {
     return system;
 }
 */
+
+void systemd_mount_unit_helper_free(struct systemd_mount_unit_helper **shelper) {
+    if (*shelper) {
+        struct systemd_mount_unit *unit;
+        if ((*shelper)->count) {
+            for (unsigned int i=0; i<(*shelper)->count; ++i) {
+                unit = (*shelper)->mounts + i;
+                free(unit->name);
+                free(unit->system);
+            }
+            free((*shelper)->mounts);
+        }
+        free(*shelper);
+        *shelper = NULL;
+    }
+}
 
 struct systemd_mount_unit_helper *systemd_get_units() {
     DIR *dir = opendir(SYSTEMD_UNIT_DIR);

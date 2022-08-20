@@ -98,20 +98,23 @@ bool mount_dir_update(const char* path) {
     }
 }
 
-bool mount_partition_eeroms() {
+bool mount_partition_eeroms(const char *mount_point) {
+    if (mount_is_mount_point(mount_point)) {
+        return true;
+    }
     struct libmnt_context *cxt = mnt_new_context();
     if (cxt == NULL) {
         logging(LOGGING_ERROR, "Failed to allocate mount context");
         return false;
     }
-    logging(LOGGING_INFO, "Trying to mount EEROMS back to '"MOUNT_POINT_ROMS"'");
+    logging(LOGGING_INFO, "Trying to mount EEROMS to '%s", mount_point);
     struct mount_table *table = mount_get_table();
-    // bool ret;
-    if (table) {
+    if (table) { // If we can get partition table, try the one providing .update and the 3rd partition of boot drive, this is optimal
+        logging(LOGGING_INFO, "Trying to get the underlying partition of "MOUNT_POINT_UPDATE);
         struct mount_entry *entry = mount_find_entry_by_mount_point(MOUNT_POINT_UPDATE, table);
         if (entry) {
             logging(LOGGING_INFO, "'"MOUNT_POINT_UPDATE"' is mounted, using the underlying partition %s as EEROMS", entry->mount_source);
-            if (mnt_context_set_source(cxt, entry->mount_source) || mnt_context_set_options(cxt, entry->mount_options) || mnt_context_set_target(cxt, MOUNT_POINT_ROMS) || mnt_context_mount(cxt)) {
+            if (mnt_context_set_source(cxt, entry->mount_source) || mnt_context_set_options(cxt, entry->mount_options) || mnt_context_set_target(cxt, mount_point) || mnt_context_mount(cxt)) {
                 logging(LOGGING_ERROR, "Failed to mount the partition %s", entry->mount_source);
             } else {
                 mnt_free_context(cxt);
@@ -131,6 +134,7 @@ bool mount_partition_eeroms() {
         size_t len_partition;
         char *partition;
         for (int i=0; i<2; ++i) {
+            logging(LOGGING_INFO, "Trying to get the underlying disk of '%s' and use the 3rd partition there", mount_points[i]);
             if ((entry = mount_find_entry_by_mount_point(mount_points[i], table)) == NULL) {
                 logging(LOGGING_ERROR, "Can not find the partitions under %s", mount_points[i]);
                 continue;
@@ -141,7 +145,7 @@ bool mount_partition_eeroms() {
             }
             len_partition = strlen(partition);
             partition[len_partition-1] = '3';
-            if (mnt_context_set_source(cxt, partition) || mnt_context_set_mflags(cxt, MS_NOATIME) || mnt_context_set_target(cxt, MOUNT_POINT_ROMS) || mnt_context_mount(cxt)) {
+            if (mnt_context_set_source(cxt, partition) || mnt_context_set_mflags(cxt, MS_NOATIME) || mnt_context_set_target(cxt, mount_point) || mnt_context_mount(cxt)) {
                 logging(LOGGING_ERROR, "Failed to mount the partition %s", partition);
             } else {
                 free(partition);
@@ -158,14 +162,15 @@ bool mount_partition_eeroms() {
         mount_free_table(&table);
     }
     // Can not find any, at least try to find any other partition with LABEL=EEROMS
-    if (mnt_context_set_source(cxt, "LABEL=EEROMS") || mnt_context_set_mflags(cxt, MS_NOATIME) || mnt_context_set_target(cxt, MOUNT_POINT_ROMS) || mnt_context_mount(cxt)) {
+    logging(LOGGING_INFO, "Last hope, mounting LABEL=EEROMS directly, we cannot guarantee it's the correct EEROMS");
+    if (mnt_context_set_source(cxt, "LABEL=EEROMS") || mnt_context_set_mflags(cxt, MS_NOATIME) || mnt_context_set_target(cxt, mount_point) || mnt_context_mount(cxt)) {
         logging(LOGGING_ERROR, "Failed to mount LABEL=EEROMS");
     } else {
         mnt_free_context(cxt);
         return true;
     }
     mnt_free_context(cxt);
-    logging(LOGGING_ERROR, "All tries to mount '"MOUNT_POINT_ROMS"' failed");
+    logging(LOGGING_ERROR, "All tries to mount '%s' failed", mount_point);
     return false;
 }
 
@@ -430,7 +435,7 @@ bool mount_umount_roms() {
 
 bool mount_umount_roms_sub() {
     /*
-        This is seperate from umount_roms and mount_find_entry_by_mount_point_start_with() is not used there because we don't want to umount folders like /stoarge/roms_backup
+        This is seperate from umount_roms, as a result of mount_find_entry_by_mount_point_start_with() not used there because we don't want to umount folders like /stoarge/roms_backup
     */
     struct mount_table *table = mount_get_table();
     if (table) {
@@ -523,42 +528,125 @@ bool mount_prepare() {
     // return true;
 }
 
-bool mount_root(struct systemd_mount_unit_helper *shelper, struct drive_helper *dhelper) {
+int mount_root(struct systemd_mount_unit_helper *shelper, struct drive_helper *dhelper) {
     if (!util_mkdir(MOUNT_POINT_ROMS, 0755)) {
         logging(LOGGING_ERROR, "Can not create/valid directory '"MOUNT_POINT_ROMS"', all mount operations cancelled");
-        return false;
+        return -1;
     }
     // Only one providing /storage/roms, that is storage-roms.mount
     if (shelper && shelper->root && systemd_start_unit(shelper->root->name)) {
-        return true;
+        logging(LOGGING_INFO, "Successfully mounted "MOUNT_POINT_ROMS" through systemd");
+        if (mount_partition_eeroms(MOUNT_POINT_EXT)) {
+            mount_dir_update(MOUNT_POINT_EXT"/.update");
+        }
+        return 0;
     }
-    char path[len_mount_ext_parent + 262];
-    char *name;
-    // Multiple can provide /storage/roms, we go alphabetically
-    for (unsigned i=0; i<dhelper->count; ++i) {
-        if ((dhelper->drives+i)->count == 0) { 
-            name = (dhelper->drives+i)->name;
-            snprintf(path, len_mount_ext_parent + strlen(name) + 7, MOUNT_EXT_PARENT"/%s/roms", name);
-            if (!mount(path, MOUNT_POINT_ROMS, NULL, MS_BIND, NULL)) {
-                return true;
+    if (dhelper) {
+        char path[len_mount_ext_parent + 262];
+        char *name;
+        // Multiple can provide /storage/roms, we go alphabetically
+        for (unsigned i=0; i<dhelper->count; ++i) {
+            if ((dhelper->drives+i)->count == 0) { 
+                name = (dhelper->drives+i)->name;
+                snprintf(path, len_mount_ext_parent + strlen(name) + 7, MOUNT_EXT_PARENT"/%s/roms", name);
+                logging(LOGGING_INFO, "Binding '%s' to '"MOUNT_POINT_ROMS"'", path);
+                if (!mount(path, MOUNT_POINT_ROMS, NULL, MS_BIND, NULL)) {
+                    logging(LOGGING_INFO, "Successfully binded "MOUNT_POINT_ROMS);
+                    if (mount_partition_eeroms(MOUNT_POINT_EXT)) {
+                        mount_dir_update(MOUNT_POINT_EXT"/.update");
+                    }
+                    return 0;
+                }
             }
         }
     }
     // Since all failed, try to get EEROMS back
-    if (mount_partition_eeroms()) {
+    if (mount_partition_eeroms(MOUNT_POINT_ROMS)) {
         mount_dir_update(MOUNT_POINT_ROMS"/.update"); // Optionally mount .update
-        return true;
+        return 0;
     }
-    return false;
+    return 1;
 }
 
-bool mount_systems() {
-    return true;
+struct mount_finished_helper *mount_drive_systems(struct drive_helper *dhelper, struct mount_finished_helper *mhelper) {
+    unsigned int i, j, k;
+    struct drive *drive;
+    char *dsystem, **buffer;
+    char path_source[len_mount_ext_parent+517]; // +1 for /, +255 for drive name, +1 for /, +4 for roms, +255 for system name, +1 for null
+    char path_target[len_mount_point_roms+257]; // +1 for /, +255 for name, +1 for null
+    size_t len_system;
+    size_t len_drive;
+    bool unique;
+    for (i=0; i<dhelper->count; ++i) {
+        drive = dhelper->drives+i;
+        len_drive = 0;
+        for (j=0; j<drive->count; ++j) {
+            dsystem = drive->systems[j];
+            unique = true;
+            for (k=0; k<mhelper->count; ++k) {
+                if (!strcmp(mhelper->systems[k], dsystem)) {
+                    unique = false;
+                    break;
+                }
+            }
+            if (unique) {
+                len_system = strlen(dsystem);
+                snprintf(path_target, len_mount_point_roms + len_system + 2, MOUNT_POINT_ROMS"/%s", dsystem);
+                if (!util_mkdir(path_target, 0755)) {
+                    logging(LOGGING_ERROR, "Failed to binding system %s under drive %s on %s as we failed to confirm the target is a folder and further create if not", dsystem, drive->name, path_target);
+                    continue;
+                }
+                if (len_drive == 0) {
+                    len_drive = strlen(drive->name);
+                }
+                snprintf(path_source, len_mount_ext_parent + len_drive + len_system + 8, MOUNT_EXT_PARENT"/%s/roms/%s", drive->name, dsystem);
+                logging(LOGGING_DEBUG, "Binding '%s' to '%s'", path_source, path_target);
+                if (mount(path_source, path_target, NULL, MS_BIND, NULL)) {
+                    logging(LOGGING_ERROR, "Failed to bind '%s' to '%s'", path_source, path_target);
+                    continue;
+                }
+                logging(LOGGING_INFO, "Successfully binded '%s' to '%s'", path_source, path_target);
+                if (mhelper == NULL) {
+                    if ((mhelper = malloc(sizeof(struct mount_finished_helper))) == NULL) {
+                        return NULL;
+                    }
+                    if ((mhelper->systems = malloc(sizeof(char *) * ALLOC_BASE_SIZE)) == NULL) {
+                        free(mhelper);
+                        return NULL;
+                    }
+                    mhelper->alloc_systems = ALLOC_BASE_SIZE;
+                    mhelper->count = 0;
+                }
+                if (++(mhelper->count) > mhelper->alloc_systems) {
+                    mhelper->alloc_systems *= ALLOC_MULTIPLIER;
+                    if ((buffer = realloc(mhelper->systems, sizeof(char *) * mhelper->alloc_systems)) == NULL) {
+                        free(mhelper->systems);
+                        free(mhelper);
+                        return NULL;
+                    }
+                    mhelper->systems = buffer;
+                }
+                mhelper->systems[mhelper->count-1] = dsystem;
+            }
+        }
+    }
+    return mhelper;
+}
+
+struct mount_finished_helper *mount_systems(struct systemd_mount_unit_helper *shelper, struct drive_helper *dhelper) {
+    struct mount_finished_helper *mhelper = NULL;
+    if (shelper) {
+        mhelper = systemd_start_unit_systems(shelper);
+    }
+    if (dhelper) {
+        mhelper = mount_drive_systems(dhelper, mhelper);
+    }
+    return mhelper;
 }
 
 bool mount_ports_scripts() {
     // ports on /storage/roms/ports_scripts type overlay (rw,relatime,lowerdir=/usr/bin/ports,upperdir=/emuelec/ports,workdir=/storage/.tmp/ports-workdir)
-    if (!util_mkdir(MOUNT_POINT_PORTS_SCRIPTS, 0777)) {
+    if (!util_mkdir(MOUNT_POINT_PORTS_SCRIPTS, 0755)) {
         return false;
     }
     struct libmnt_context *cxt = mnt_new_context();
@@ -576,8 +664,31 @@ bool mount_ports_scripts() {
     return true;
 }
 
-bool mount_roms_tree() {
-    // mount_root();
+
+bool mount_routine() {
+    if (!mount_prepare())  {
+        logging(LOGGING_ERROR, "Failed to prepare mounting");
+        return false;
+    }
+    struct systemd_mount_unit_helper *shelper = systemd_get_units();
+    struct drive_helper *dhelper = drive_get_mounts();
+    if (shelper) {
+        systemd_reload();
+    }
+    if (mount_root(shelper, dhelper) < 0) {
+        systemd_mount_unit_helper_free(&shelper);
+        drive_helper_free(&dhelper);
+        return false;
+    }
     mount_ports_scripts();
-    mount_systems();
+    struct mount_finished_helper *mhelper = mount_systems(shelper, dhelper);
+    if (mhelper && mhelper->count) {
+        logging(LOGGING_DEBUG, "The following systems are mounted:");
+        for (unsigned int i=0; i<mhelper->count; ++i) {
+            logging(LOGGING_DEBUG, " -> %s", mhelper->systems[i]);
+        }
+        free(mhelper->systems);
+        free(mhelper);
+    }
+    return true;
 }
