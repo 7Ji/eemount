@@ -572,3 +572,9 @@ bool mount_ports_scripts() {
     mnt_free_context(cxt);
     return true;
 }
+
+bool mount_roms_tree() {
+    mount_root();
+    mount_ports_scripts();
+    mount_systems();
+}
