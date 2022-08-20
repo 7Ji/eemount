@@ -574,7 +574,7 @@ bool mount_ports_scripts() {
 }
 
 bool mount_roms_tree() {
-    mount_root();
+    // mount_root();
     mount_ports_scripts();
     mount_systems();
 }

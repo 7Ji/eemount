@@ -146,36 +146,142 @@ bool systemd_start_unit(const char *unit) {
     return false;
 }
 
-char **systemd_start_unit_all(struct systemd_mount_unit_helper *shelper) {
+struct mount_system_simple *systemd_start_unit_all(struct systemd_mount_unit_helper *shelper) {
+    // This should return an array of started systems
+    struct systemd_mount_unit *root = shelper->root;
+    unsigned int count = shelper->count-(bool)root;
+    if (!count) {
+        logging(LOGGING_INFO, "No systems provided by systemd units");
+        return NULL;
+    }
     sd_bus_slot *slot _cleanup_(sd_bus_slot_unrefp) = NULL;
     if (sd_bus_match_signal(systemd_bus, &slot, SYSTEMD_DESTINATION, SYSTEMD_PATH, SYSTEMD_INTERFACE_MANAGER, "JobRemoved", NULL, NULL) < 0) {
         logging(LOGGING_ERROR, "Failed to match systemd signal, have not started job yet");
-        return false;
+        return NULL;
     }
     sd_bus_error error _cleanup_(sd_bus_error_free) = SD_BUS_ERROR_NULL;
     sd_bus_message *reply _cleanup_(sd_bus_message_unrefp) = NULL;
+    struct systemd_mount_unit *unit;
+    struct systemd_mount_unit_job jobs[count];
+    struct systemd_mount_unit_job *job;
+    char *job_path;
+    unsigned int job_array_id = 0;
     for (unsigned i=0; i<shelper->count; ++i) {
-        if (sd_bus_call_method(systemd_bus, SYSTEMD_DESTINATION, SYSTEMD_PATH, SYSTEMD_INTERFACE_MANAGER, "StartUnit", &error, &reply, "ss", (shelper->mounts+i)->name, "replace") < 0) {
+        unit = shelper->mounts+i;
+        if (unit == root) {
+            // Don't ever start root unit here
+            continue;
+        }
+        if (sd_bus_call_method(systemd_bus, SYSTEMD_DESTINATION, SYSTEMD_PATH, SYSTEMD_INTERFACE_MANAGER, "StartUnit", &error, &reply, "ss", unit->name, "replace") < 0) {
             logging(LOGGING_ERROR, "Failed to call StartUnit method of systemd, error: %s", error.message);
-            return false;
+            return NULL;
         }
         if (reply == NULL) {
             logging(LOGGING_ERROR, "Got no reply from systemd, dont know what job it started, assuming failed");
-            return false;
+            return NULL;
         }
-        char *job;
-        if (sd_bus_message_read(reply, "o", &job) < 0) {
+        if (sd_bus_message_read(reply, "o", &job_path) < 0) {
             logging(LOGGING_ERROR, "Failed to read systemd message, assuming failed");
-            return false;
+            return NULL;
         }
-        if (job == NULL) {
+        if (job_path == NULL) {
             logging(LOGGING_ERROR, "Got no valid job object path, can not confirm if started successfully, assuming failed");
-            return false;
+            return NULL;
         }
-        uint32_t job_id = strtoul(job + len_systemd_job_prefix, NULL, 10);
+        job = jobs + job_array_id++;
+        job->system = unit->system;
+        job->job_id = strtoul(job_path + len_systemd_job_prefix, NULL, 10);
+        job->success = false;
+        job->finished = false;
+        logging(LOGGING_INFO, "Started systemd job %"PRIu32", will wait for it to finish later", job->job_id);
     }
-
-
+    if (job_array_id != count) {
+        logging(LOGGING_ERROR, "Jobs array mismatch");
+        return NULL;
+    }
+    uint32_t id;
+    char *result;
+    int failed = 0;
+    unsigned int finished = 0;
+    sd_bus_message *msg _cleanup_(sd_bus_message_unrefp) = NULL;
+    logging(LOGGING_INFO, "Starting to wait for %u jobs to finish", count);
+    for (int i=0; i<SYSTEMD_START_TIMEOUT; ++i) {
+        while (sd_bus_process(systemd_bus, &msg)) {
+            logging(LOGGING_DEBUG, "Processing sd_bus message...");
+            if (msg) {
+                if (sd_bus_message_read(msg, "uoss", &id, NULL, NULL, &result) < 0) {
+                    logging(LOGGING_WARNING, "Failed to read systemd message");
+                    if (++failed == 3) {
+                        logging(LOGGING_ERROR, "Failed to read for 3 times, assuming job failed");
+                        return NULL;
+                    }
+                    continue;
+                }
+                logging(LOGGING_DEBUG, "Got message, job ID: %"PRIu32, id);
+                for (job_array_id=0; job_array_id<count; ++job_array_id) {
+                    job = jobs + job_array_id;
+                    if (job->finished) {
+                        continue;
+                    }
+                    if (id == job->job_id) {
+                        logging(LOGGING_INFO, "Job finished, checking result");
+                        job->finished = true;
+                        if (result) {
+                            if (strcmp(result, "done")) {
+                                logging(LOGGING_WARNING, "Job failed");
+                            } else {
+                                logging(LOGGING_INFO, "Job finished successfully");
+                                job->success = true;
+                            }
+                        } else {
+                            logging(LOGGING_ERROR, "Job result invalid, assuming failed");
+                        }
+                        if (++finished == count) {
+                            goto jobs_finished;
+                        }
+                    }
+                }
+            }
+        }
+        sd_bus_wait(systemd_bus, SYSTEMD_START_TIMEOUT);
+        sleep(1);
+    }
+jobs_finished:
+    struct mount_system_simple *system_head = NULL, *system = NULL, *next, *buffer;
+    bool insert;
+    for (job_array_id = 0; job_array_id<count; ++job_array_id) {
+        job = jobs+job_array_id;
+        if (!(job->success)) {
+            continue;
+        }
+        if ((buffer = malloc(sizeof(struct mount_system_simple))) == NULL) {
+            logging(LOGGING_ERROR, "Failed to allocate memory for simple mount system chain table");
+            return system_head;
+        }
+        buffer->system = job->system;
+        if (system_head == NULL) {
+            buffer->next = NULL;
+            system_head = buffer;
+        } else {
+            system = system_head;
+            insert = false;
+            while ((next = system->next)) {
+                if (strcmp(job->system, system->system)>0 && strcmp(job->system, next->system)<0) {
+                    // buffer->system = job->system;
+                    buffer->next = next;
+                    system->next = buffer;
+                    insert = true;
+                    break;
+                }
+                system = system->next;
+            }
+            if (!insert) {
+                buffer->next = NULL;
+                system->next = buffer;
+            }
+        }
+    }
+    return system_head;
 }
 
 static char *systemd_system_from_name(const char *name) {

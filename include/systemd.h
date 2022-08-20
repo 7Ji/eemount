@@ -2,6 +2,7 @@
 #define HAVE_SYSTEMD_H
 #include "common.h"
 
+#include <stdint.h>
 #include <stdbool.h>
 
 /**
@@ -47,6 +48,13 @@ struct systemd_mount_unit_helper {
     struct systemd_mount_unit *root;
     unsigned int count;
     unsigned int alloc_mounts;
+};
+
+struct systemd_mount_unit_job {
+    char *system;
+    uint32_t job_id;
+    bool success;
+    bool finished;
 };
 
 /**

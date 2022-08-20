@@ -7,6 +7,7 @@
 #include "alloc.h"
 #include "sort.h"
 #include "util.h"
+#include "mount.h"
 
 #define SYSTEMD_DESTINATION         "org.freedesktop.systemd1"
 #define SYSTEMD_INTERFACE_UNIT      SYSTEMD_DESTINATION".Unit"
