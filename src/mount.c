@@ -419,25 +419,23 @@ bool mount_root(struct systemd_mount_unit_helper *shelper, struct drive_helper *
         logging(LOGGING_ERROR, "Can not create/valid directory '"MOUNT_POINT_ROMS"', all mount operations cancelled");
         return false;
     }
+    // Only one providing /storage/roms, that is storage-roms.mount
     if (shelper->root && systemd_start_unit(shelper->root->name)) {
-        // Only one providing /storage/roms, that is storage-roms.mount
         return true;
     }
-    char *path = NULL;
+    char path[len_mount_ext_parent + 262];
+    char *name;
+    // Multiple can provide /storage/roms, we go alphabetically
     for (unsigned i=0; i<dhelper->count; ++i) {
-        if ((dhelper->drives+i)->count == 0) { // Multiple can provide /storage/roms, we go alphabetically
-            if (path == NULL) {
-                path = malloc();
-            }
-            if (!mount((dhelper->drives+i)->name, mount_point_roms, NULL, MS_BIND, NULL)) {
-                free(path);
+        if ((dhelper->drives+i)->count == 0) { 
+            name = (dhelper->drives+i)->name;
+            snprintf(path, len_mount_ext_parent + strlen(name) + 7, MOUNT_EXT_PARENT"/%s/roms", name);
+            if (!mount(path, mount_point_roms, NULL, MS_BIND, NULL)) {
                 return true;
             }
         }
     }
-    if (path) {
-        free(path);
-    }
+    // Since all failed, try to get EEROMS back
     if (mount_partition_eeroms()) {
         return true;
     }

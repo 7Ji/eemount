@@ -146,6 +146,38 @@ bool systemd_start_unit(const char *unit) {
     return false;
 }
 
+char **systemd_start_unit_all(struct systemd_mount_unit_helper *shelper) {
+    sd_bus_slot *slot _cleanup_(sd_bus_slot_unrefp) = NULL;
+    if (sd_bus_match_signal(systemd_bus, &slot, SYSTEMD_DESTINATION, SYSTEMD_PATH, SYSTEMD_INTERFACE_MANAGER, "JobRemoved", NULL, NULL) < 0) {
+        logging(LOGGING_ERROR, "Failed to match systemd signal, have not started job yet");
+        return false;
+    }
+    sd_bus_error error _cleanup_(sd_bus_error_free) = SD_BUS_ERROR_NULL;
+    sd_bus_message *reply _cleanup_(sd_bus_message_unrefp) = NULL;
+    for (unsigned i=0; i<shelper->count; ++i) {
+        if (sd_bus_call_method(systemd_bus, SYSTEMD_DESTINATION, SYSTEMD_PATH, SYSTEMD_INTERFACE_MANAGER, "StartUnit", &error, &reply, "ss", (shelper->mounts+i)->name, "replace") < 0) {
+            logging(LOGGING_ERROR, "Failed to call StartUnit method of systemd, error: %s", error.message);
+            return false;
+        }
+        if (reply == NULL) {
+            logging(LOGGING_ERROR, "Got no reply from systemd, dont know what job it started, assuming failed");
+            return false;
+        }
+        char *job;
+        if (sd_bus_message_read(reply, "o", &job) < 0) {
+            logging(LOGGING_ERROR, "Failed to read systemd message, assuming failed");
+            return false;
+        }
+        if (job == NULL) {
+            logging(LOGGING_ERROR, "Got no valid job object path, can not confirm if started successfully, assuming failed");
+            return false;
+        }
+        uint32_t job_id = strtoul(job + len_systemd_job_prefix, NULL, 10);
+    }
+
+
+}
+
 static char *systemd_system_from_name(const char *name) {
     size_t len = strlen(name);
     char *system;

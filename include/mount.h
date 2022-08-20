@@ -71,6 +71,12 @@ struct mount_system {
     struct drive *drive;
 };
 
+struct mount_system_simple {
+    char *system;
+    struct mount_system_simple *prev;
+    struct mount_system_simple *next;
+};
+
 /**
  * @brief The helper struct of all systems that should be mounted
  * 
