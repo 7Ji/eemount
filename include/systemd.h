@@ -104,6 +104,7 @@ struct systemd_mount_helper {
 bool systemd_reload();
 bool systemd_start_unit_no_wait(const char *unit);
 bool systemd_start_unit(const char *unit);
+struct mount_finished_helper *systemd_start_unit_systems(struct systemd_mount_unit_helper *shelper);
 struct systemd_mount_unit_helper *systemd_get_units();
 /**
  * @brief Get all systemd mounts under /storage/roms

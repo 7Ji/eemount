@@ -2,17 +2,42 @@
 // #include "systemd.h"
 // #include "mount.h"
 // #include "block.h"
-// #include "systemd.h"
+#include "systemd.h"
 // #include "util.h"
 // #include "eeconfig.h"
 // #include "drive.h"
 #include "mount.h"
 int main() {
-    mount_ports_scripts();
-    // if (!systemd_init_bus()) {
-    //     return 1;
-    // }
-    // systemd_start_unit_no_wait("storage-roms.mount");
+    if (!systemd_init_bus()) {
+        return 1;
+    }
+    if (!mount_prepare())  {
+        return 1;
+    }
+    struct systemd_mount_unit_helper *shelper = systemd_get_units();
+    if (shelper) {
+        systemd_reload();
+        struct systemd_mount_unit *root = shelper->root;
+        for (unsigned int i=0; i<shelper->count; ++i) {
+            printf("Unit: %s, System: %s\n", (shelper->mounts+i)->name, (shelper->mounts+i)->system);
+        }
+        if (root) {
+            printf("root unit: %s, root system: %s\n", root->name, root->system);
+            systemd_start_unit(root->name);
+        }
+        struct mount_finished_helper *mhelper = systemd_start_unit_systems(shelper);
+        if (mhelper) {
+            for (unsigned int i=0; i<mhelper->count; ++i) {
+                printf("system: %s\n", mhelper->systems[i]);
+            }
+        } else {
+            puts("none success");
+        }
+        mount_ports_scripts();
+    }
+    systemd_release();
+
+    // mount_ports_scripts();
     // systemd_release();
     // util_mkdir_recursive("/tmp/drive/media/nes", 0755);
     // if (!eeconfig_initialize()) {

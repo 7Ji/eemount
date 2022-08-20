@@ -71,12 +71,22 @@ struct mount_system {
     struct drive *drive;
 };
 
-struct mount_system_simple {
-    char *system;
-    // struct mount_system_simple *prev;
-    struct mount_system_simple *next;
+struct mount_finished_helper {
+    unsigned int count;
+    unsigned int alloc_systems;
+    char **systems;
 };
+// struct mount_system_simple {
+//     char *system;
+//     // struct mount_system_simple *prev;
+//     struct mount_system_simple *next;
+// };
 
+// struct mount_system_success_helper {
+//     char **systems;
+//     unsigned int count;
+//     unsigned int alloc_systems;
+// };
 /**
  * @brief The helper struct of all systems that should be mounted
  * 

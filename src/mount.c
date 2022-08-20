@@ -558,6 +558,9 @@ bool mount_systems() {
 
 bool mount_ports_scripts() {
     // ports on /storage/roms/ports_scripts type overlay (rw,relatime,lowerdir=/usr/bin/ports,upperdir=/emuelec/ports,workdir=/storage/.tmp/ports-workdir)
+    if (!util_mkdir(MOUNT_POINT_PORTS_SCRIPTS, 0777)) {
+        return false;
+    }
     struct libmnt_context *cxt = mnt_new_context();
     if (cxt == NULL) {
         logging(LOGGING_ERROR, "Failed to obtain mount context for "MOUNT_POINT_PORTS_SCRIPTS);
