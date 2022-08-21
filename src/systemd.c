@@ -9,12 +9,12 @@ bool systemd_encode_path(char *unit, char **path) {
     }
 }
 
-bool systemd_init_bus() {
+int systemd_init_bus() {
     if(sd_bus_default_system(&systemd_bus) < 0) {
         fprintf(stderr, "Failed to open systemd bus\n");
-        return false;
+        return 1;
     } else {
-        return true;
+        return 0;
     }
 }
 

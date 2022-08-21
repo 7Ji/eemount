@@ -7,10 +7,10 @@
 /**
  * @brief Initialize the eeconfig. Open the corresponding config file
  * 
- * @return true The eeconfig file is opened successfully
- * @return false The eeconfig file is not opened successfully, all other eeconfig_ calls should not be used
+ * @return 0 The eeconfig file is opened successfully
+ * @return 1 The eeconfig file is not opened successfully, all other eeconfig_ calls should not be used
  */
-bool eeconfig_initialize();
+int eeconfig_initialize();
 
 /**
  * @brief Close the eeconfig. Only use after eeconfig_initialize() returns true

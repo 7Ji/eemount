@@ -18,10 +18,10 @@ bool systemd_encode_path(char *unit, char **path);
 /**
  * @brief Initialize the systemd_bus
  * 
- * @return true Initialized successfully
- * @return false Failed to initialize
+ * @return 0 Initialized successfully
+ * @return 1 Failed to initialize
  */
-bool systemd_init_bus();
+int systemd_init_bus();
 
 /**
  * @brief Release the systemd_bus, only call this at most once after a successful initialization

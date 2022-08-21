@@ -107,7 +107,7 @@ bool mount_partition_eeroms(const char *mount_point) {
         logging(LOGGING_ERROR, "Failed to allocate mount context");
         return false;
     }
-    logging(LOGGING_INFO, "Trying to mount EEROMS to '%s", mount_point);
+    logging(LOGGING_INFO, "Trying to mount EEROMS to '%s'", mount_point);
     struct mount_table *table = mount_get_table();
     if (table) { // If we can get partition table, try the one providing .update and the 3rd partition of boot drive, this is optimal
         logging(LOGGING_INFO, "Trying to get the underlying partition of "MOUNT_POINT_UPDATE);

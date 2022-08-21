@@ -1,11 +1,11 @@
 #include "eeconfig_p.h"
 
-bool eeconfig_initialize() {
+int eeconfig_initialize() {
     if ((eeconfig = fopen(EECONFIG_FILE, "r")) == NULL) {
         logging(LOGGING_ERROR, "Failed to open emuelec config file: '"EECONFIG_FILE"'");
-        return false;
+        return 1;
     }
-    return true;
+    return 0;
 }
 
 void eeconfig_close() {
@@ -18,6 +18,10 @@ void eeconfig_close() {
 }
 
 char *eeconfig_get_string(const char *key) {
+    if (eeconfig == NULL) {
+        logging(LOGGING_WARNING, "Config '%s' defaulting to NULL since we failed to initialize eeconfig", key);
+        return NULL;
+    }
     char *line;
     size_t size_line = 0;
     size_t len_line;
@@ -103,6 +107,10 @@ char *eeconfig_get_string(const char *key) {
 }
 
 int eeconfig_get_int(const char *key) {
+    if (eeconfig == NULL) {
+        logging(LOGGING_WARNING, "Config '%s' defaulting to 0 since we failed to initialize eeconfig", key);
+        return 0;
+    }
     char *value = eeconfig_get_string(key);
     if (value == NULL) {
         logging(LOGGING_WARNING, "Configuration '%s' not found, defaulting to 0", key);
@@ -120,6 +128,10 @@ int eeconfig_get_int(const char *key) {
 }
 
 bool eeconfig_get_bool(const char *key, const bool bool_default) {
+    if (eeconfig == NULL) {
+        logging(LOGGING_WARNING, "Config '%s' defaulting to false since we failed to initialize eeconfig", key);
+        return false;
+    }
     char *value = eeconfig_get_string(key);
     if (value == NULL) {
         logging(LOGGING_WARNING, "Configuration '%s' not found, using default value '%d'", key, bool_default);
