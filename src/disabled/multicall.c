@@ -1,3 +1,4 @@
+#if 0
 #define PRINT_ONLY
 #include "common.h"
 #include <string.h>
@@ -267,4 +268,5 @@ int main() {
     // systemd_release();
     return 0;
 }
+#endif
 #endif

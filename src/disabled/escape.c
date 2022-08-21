@@ -1,3 +1,4 @@
+#if 0
 #include "escape_p.h"
 
 bool escape_character(char character){
@@ -71,3 +72,4 @@ char *escape_string(char *string) {
     }
     return escape_string;
 }
+#endif

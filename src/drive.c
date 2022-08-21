@@ -119,7 +119,7 @@ static int drive_scan(struct drive *drive, FILE *fp) {
         } 
         strncpy(*dsystem, line, len_line);
         (*dsystem)[len_line] = '\0';
-        logging(LOGGING_DEBUG, "Drive '%s': Found system '%s'", drive->name, *system);
+        logging(LOGGING_DEBUG, "Drive '%s': Found system '%s'", drive->name, *dsystem);
     }
     if (path) {
         free(path);

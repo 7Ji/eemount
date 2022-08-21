@@ -1,3 +1,4 @@
+#if 0
 #include "block_p.h"
 
 bool block_initialize() {
@@ -38,3 +39,4 @@ void block_free() {
         block_pr = NULL;
     }
 }
+#endif
