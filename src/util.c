@@ -101,7 +101,7 @@ int util_mkdir_recursive(const char *path, mode_t mode) {
     for (char *p = _path + 1; *p; ++p) {
         if (*p == '/') {
             *p = '\0';
-            if (!util_mkdir(_path, mode)) {
+            if (util_mkdir(_path, mode)) {
                 free(_path);
                 logging(LOGGING_ERROR, "Failed to mkdir '%s' recursively", path);
                 return 1;
@@ -109,7 +109,7 @@ int util_mkdir_recursive(const char *path, mode_t mode) {
             *p = '/';
         }
     }
-    if (!util_mkdir(_path, mode)) {
+    if (util_mkdir(_path, mode)) {
         free(_path);
         logging(LOGGING_ERROR, "Failed to mkdir '%s' recursively", path);
         return 1;

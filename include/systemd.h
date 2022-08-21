@@ -6,6 +6,23 @@
 #include <stdbool.h>
 
 /**
+ * @brief Enum for unit methods
+ * 
+ */
+enum systemd_unit_methods {
+    /**
+     * @brief Method to start a unit
+     * 
+     */
+    SYSTEMD_START_UNIT,
+    /**
+     * @brief Method to stop a unit
+     * 
+     */
+    SYSTEMD_STOP_UNIT
+};
+
+/**
  * @brief Strcut for systemd mount units
  * 
  */
@@ -114,6 +131,14 @@ void systemd_mount_unit_helper_free(struct systemd_mount_unit_helper **shelper);
  * @return int 0 for success, 1 for failed
  */
 int systemd_start_unit(const char *unit);
+
+/**
+ * @brief Stop a systemd unit
+ * 
+ * @param unit The unit name
+ * @return int 0 for success, 1 for failed
+ */
+int systemd_stop_unit(const char *unit);
 
 /**
  * @brief Start systemd units for system mounts

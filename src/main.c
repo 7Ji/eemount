@@ -7,6 +7,7 @@ int main() {
         logging(LOGGING_FATAL, "Failed to initialize systemd bus");
         return 1;
     }
+    systemd_stop_unit("smbd.service");
     if (eeconfig_initialize()) {
         logging(LOGGING_WARNING, "Failed to initialize eeconfig, all config values will be defaulted");
     }
@@ -15,6 +16,7 @@ int main() {
     } else {
         logging(LOGGING_INFO, "All mount successful, happy retro-gaming");
     }
+    systemd_start_unit("smbd.service");
     systemd_release();
     eeconfig_close();
     return 0;

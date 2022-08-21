@@ -277,11 +277,16 @@ static int eemount_mount_partition_eeroms(const char *mount_point) {
                 logging(LOGGING_ERROR, "Can not find the partitions under %s", mount_points[i]);
                 continue;
             }
+            if ((len_partition = strlen(partition)) < 5) { //  /dev/
+                continue;
+            }
+            if (entry->mount_source[len_partition-1] < '1' || entry->mount_source[len_partition-1] > '9') {
+                continue;
+            }
             if ((partition = strdup(entry->mount_source)) == NULL) {
                 logging(LOGGING_ERROR, "Failed to allocate memory for partition name");
                 continue;
             }
-            len_partition = strlen(partition);
             partition[len_partition-1] = '3';
             if (mnt_context_set_source(cxt, partition) || mnt_context_set_mflags(cxt, MS_NOATIME) || mnt_context_set_target(cxt, mount_point) || mnt_context_mount(cxt)) {
                 logging(LOGGING_ERROR, "Failed to mount the partition %s", partition);
@@ -311,8 +316,6 @@ static int eemount_mount_partition_eeroms(const char *mount_point) {
     logging(LOGGING_ERROR, "All tries to mount '%s' failed", mount_point);
     return 1;
 }
-
-
 
 static int eemount_umount_roms() {
     logging(LOGGING_INFO, "Umounting all mount points under "PATH_DIR_ROMS"...");
@@ -361,6 +364,7 @@ static int eemount_umount_roms() {
 
 
 static int eemount_mount_root(struct systemd_mount_unit_helper *shelper, struct drive_helper *dhelper) {
+    logging(LOGGING_INFO, "Mounting "PATH_DIR_ROMS"...");
     if (util_mkdir(PATH_DIR_ROMS, 0755)) {
         logging(LOGGING_ERROR, "Can not create/valid directory '"PATH_DIR_ROMS"', all mount operations cancelled");
         return -1;
@@ -394,6 +398,7 @@ static int eemount_mount_root(struct systemd_mount_unit_helper *shelper, struct 
     }
     // Since all failed, try to get EEROMS back
     if (!eemount_mount_partition_eeroms(PATH_DIR_ROMS)) {
+        logging(LOGGING_INFO, "Successfully re-mounted "PATH_NAME_EEROMS" back to "PATH_DIR_ROMS);
         eemount_mount_dir_update(PATH_DIR_UPDATE_INT); // Optionally mount .update
         return 0;
     }
@@ -488,7 +493,7 @@ static struct eemount_finished_helper *eemount_mount_systems(struct systemd_moun
 
 static int eemount_mount_ports_scripts() {
     // ports on /storage/roms/ports_scripts type overlay (rw,relatime,lowerdir=/usr/bin/ports,upperdir=/emuelec/ports,workdir=/storage/.tmp/ports-workdir)
-    if (util_mkdir(PATH_DIR_PSCRIPTS, 0755) || util_mkdir(PATH_DIR_EMUELEC_PORTS, 0755) || util_mkdir(PATH_DIR_PSCRIPTS_WORKDIR, 0755)) {
+    if (util_mkdir(PATH_DIR_PSCRIPTS, 0755) || util_mkdir(PATH_DIR_EMUELEC_PORTS, 0755) || util_mkdir_recursive(PATH_DIR_PSCRIPTS_WORKDIR, 0755)) {
         logging(LOGGING_ERROR, "Failed to create essential folders for "PATH_NAME_PSCRIPTS);
         return 1;
     }
@@ -526,7 +531,7 @@ int eemount_routine() {
     eemount_mount_ports_scripts();
     struct eemount_finished_helper *mhelper = eemount_mount_systems(shelper, dhelper);
     if (mhelper && mhelper->count) {
-        logging(LOGGING_DEBUG, "The following systems are mounted:");
+        logging(LOGGING_DEBUG, "The following systems are mounted from systemd mount units/external drives:");
         for (unsigned int i=0; i<mhelper->count; ++i) {
             logging(LOGGING_DEBUG, " -> %s", mhelper->systems[i]);
         }

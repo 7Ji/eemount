@@ -223,11 +223,11 @@ void systemd_mount_unit_helper_free(struct systemd_mount_unit_helper **shelper) 
     }
 }
 
-static int systemd_start_unit_barebone(const char *unit, uint32_t *job_id) {
+static int systemd_call_unit_method_on_manager(const char *unit, const char *method, uint32_t *job_id) {
     sd_bus_error error _cleanup_(sd_bus_error_free) = SD_BUS_ERROR_NULL;
     sd_bus_message *reply _cleanup_(sd_bus_message_unrefp) = NULL;
-    if (sd_bus_call_method(systemd_bus, SYSTEMD_NAME, SYSTEMD_PATH, SYSTEMD_INTERFACE_MANAGER, "StartUnit", &error, &reply, "ss", unit, "replace") < 0) {
-        logging(LOGGING_ERROR, "Failed to call StartUnit method of systemd, error: %s", error.message);
+    if (sd_bus_call_method(systemd_bus, SYSTEMD_NAME, SYSTEMD_PATH, SYSTEMD_INTERFACE_MANAGER, method, &error, &reply, "ss", unit, "replace") < 0) {
+        logging(LOGGING_ERROR, "Failed to call %s method of systemd, error: %s", method, error.message);
         return 1;
     }
     if (reply == NULL) {
@@ -247,6 +247,14 @@ static int systemd_start_unit_barebone(const char *unit, uint32_t *job_id) {
     return 0;
 }
 
+static int systemd_start_unit_barebone(const char *unit, uint32_t *job_id) {
+    return systemd_call_unit_method_on_manager(unit, SYSTEMD_METHOD_START_UNIT, job_id);
+}
+
+static int systemd_stop_unit_barebone(const char *unit, uint32_t *job_id) {
+    return systemd_call_unit_method_on_manager(unit, SYSTEMD_METHOD_STOP_UNIT, job_id);
+}
+
 static bool systemd_is_job_success(const char *result) {
     logging(LOGGING_INFO, "Job finished, checking result");
     if (result) {
@@ -263,16 +271,26 @@ static bool systemd_is_job_success(const char *result) {
     }
 }
 
-int systemd_start_unit(const char *unit) {
-    // Since we handle all these mount units by ourselves, overlapped enabled systemd mount units should be disabled during init:
-    // rm -f /storage/.config/system.d/*.wants/storage-roms*.mount
+static int systemd_start_stop_unit(const char *unit, int method) {
+    static int (*func)(const char*, uint32_t*);
+    switch (method) {
+        case (SYSTEMD_START_UNIT):
+            func = &systemd_start_unit_barebone;
+            break;
+        case (SYSTEMD_STOP_UNIT):
+            func = &systemd_stop_unit_barebone;
+            break;
+        default:
+            logging(LOGGING_ERROR, "Failed to start/stop unit: method %d is not a valid enum int", method);
+            return 1;
+    }
     sd_bus_slot *slot _cleanup_(sd_bus_slot_unrefp) = NULL;
     if (sd_bus_match_signal(systemd_bus, &slot, SYSTEMD_NAME, SYSTEMD_PATH, SYSTEMD_INTERFACE_MANAGER, "JobRemoved", NULL, NULL) < 0) {
         logging(LOGGING_ERROR, "Failed to match systemd signal, have not started job yet");
         return 1;
     }
     uint32_t job_id;
-    if (systemd_start_unit_barebone(unit, &job_id)) {
+    if ((*func)(unit, &job_id)) {
         return 1;
     }
     logging(LOGGING_INFO, "Started systemd job '%"PRIu32"', waiting for it to finish", job_id);
@@ -303,6 +321,16 @@ int systemd_start_unit(const char *unit) {
     }
     logging(LOGGING_WARNING, "Waited timeout after %d seconds, assumming job failed", SYSTEMD_START_TIMEOUT);
     return 1;
+}
+
+int systemd_start_unit(const char *unit) {
+    // Since we handle all these mount units by ourselves, overlapped enabled systemd mount units should be disabled during init:
+    // rm -f /storage/.config/system.d/*.wants/storage-roms*.mount
+    return systemd_start_stop_unit(unit, SYSTEMD_START_UNIT);
+}
+
+int systemd_stop_unit(const char *unit) {
+    return systemd_start_stop_unit(unit, SYSTEMD_STOP_UNIT);
 }
 
 struct eemount_finished_helper *systemd_start_unit_systems(struct systemd_mount_unit_helper *shelper) {

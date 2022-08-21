@@ -1,4 +1,3 @@
-package.mk
-mount_romfs
+eemount
 .vscode/
 obj/*.o

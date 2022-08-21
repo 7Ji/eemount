@@ -1,4 +1,4 @@
-BINARY = mount_romfs
+BINARY = eemount
 DIR_INCLUDE = include
 DIR_SOURCE = src
 DIR_OBJECT = obj

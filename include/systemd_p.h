@@ -31,6 +31,12 @@
 #define SYSTEMD_UNIT_DIR            PATH_DIR_STORAGE"/.config/system.d"
 #define SYSTEMD_START_TIMEOUT       10
 
+#define SYSTEMD_NAME_START          "Start"
+#define SYSTEMD_NAME_STOP           "Stop"
+
+#define SYSTEMD_METHOD_START_UNIT   SYSTEMD_NAME_START SYSTEMD_NAME_UNIT
+#define SYSTEMD_METHOD_STOP_UNIT    SYSTEMD_NAME_STOP SYSTEMD_NAME_UNIT
+
 static const size_t len_systemd_unit_dir = strlen(SYSTEMD_UNIT_DIR);
 static const size_t len_systemd_mount_root = strlen(SYSTEMD_MOUNT_ROOT);
 static const size_t len_systemd_suffix = strlen(SYSTEMD_MOUNT_SUFFIX);
