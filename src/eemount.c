@@ -488,7 +488,8 @@ static struct eemount_finished_helper *eemount_mount_systems(struct systemd_moun
 
 static int eemount_mount_ports_scripts() {
     // ports on /storage/roms/ports_scripts type overlay (rw,relatime,lowerdir=/usr/bin/ports,upperdir=/emuelec/ports,workdir=/storage/.tmp/ports-workdir)
-    if (util_mkdir(PATH_DIR_PSCRIPTS, 0755)) {
+    if (util_mkdir(PATH_DIR_PSCRIPTS, 0755) || util_mkdir(PATH_DIR_EMUELEC_PORTS, 0755) || util_mkdir(PATH_DIR_PSCRIPTS_WORKDIR, 0755)) {
+        logging(LOGGING_ERROR, "Failed to create essential folders for "PATH_NAME_PSCRIPTS);
         return 1;
     }
     struct libmnt_context *cxt = mnt_new_context();
@@ -496,12 +497,12 @@ static int eemount_mount_ports_scripts() {
         logging(LOGGING_ERROR, "Failed to obtain mount context for "PATH_DIR_PSCRIPTS);
         return 1;
     }
-    if (mnt_context_set_source(cxt, EEMOUNT_PORTS_SCRIPTS_NAME) || mnt_context_set_fstype(cxt, EEMOUNT_PORTS_SCRIPTS_FS) || mnt_context_set_target(cxt, PATH_DIR_PSCRIPTS) || mnt_context_set_options(cxt, EEMOUNT_PORTS_SCRIPTS_OPTIONS) || mnt_context_mount(cxt)) {
-        logging(LOGGING_ERROR, "Failed to mount "EEMOUNT_PORTS_SCRIPTS_NAME);
+    if (mnt_context_set_source(cxt, PATH_NAME_PORTS) || mnt_context_set_fstype(cxt, EEMOUNT_PORTS_SCRIPTS_FS) || mnt_context_set_target(cxt, PATH_DIR_PSCRIPTS) || mnt_context_set_options(cxt, EEMOUNT_PORTS_SCRIPTS_OPTIONS) || mnt_context_mount(cxt)) {
+        logging(LOGGING_ERROR, "Failed to mount "PATH_NAME_PORTS);
         mnt_free_context(cxt);
         return 1;
     }
-    logging(LOGGING_INFO, "Successfully mounted "EEMOUNT_PORTS_SCRIPTS_NAME);
+    logging(LOGGING_INFO, "Successfully mounted "PATH_NAME_PORTS);
     mnt_free_context(cxt);
     return 0;
 }
