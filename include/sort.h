@@ -20,7 +20,16 @@ int sort_compare_string(const void *a, const void *b);
  */
 int sort_compare_drive(const void *a, const void *b);
 
+/**
+ * @brief Comprare two systemd_mount_unit struct
+ * 
+ * @param a One of the systemd_mount_unit struct to compare
+ * @param b The other systemd_mount_unit struct to compare
+ * @return int >0 if a's system name is greater, <0 if b's system name is greater, 0 if equal
+ */
 int sort_compare_systemd_mount_unit(const void *a, const void *b);
+
+#if 0
 /**
  * @brief Compare two systemd_mount struct
  * 
@@ -30,7 +39,6 @@ int sort_compare_systemd_mount_unit(const void *a, const void *b);
  */
 int sort_compare_systemd_mount(const void *a, const void *b);
 
-#if 0
 /**
  * @brief Compare two mount_system struct
  * 

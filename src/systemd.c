@@ -1,5 +1,6 @@
 #include "systemd_p.h"
 
+#if 0
 bool systemd_encode_path(char *unit, char **path) {
     if (sd_bus_path_encode(SYSTEMD_PATH_UNIT, unit, path) < 0) {
         fprintf(stderr, "Failed to encode unit to sd-bus path\n");
@@ -8,6 +9,7 @@ bool systemd_encode_path(char *unit, char **path) {
         return true;
     }
 }
+#endif
 
 int systemd_init_bus() {
     if(sd_bus_default_system(&systemd_bus) < 0) {
@@ -27,7 +29,11 @@ void systemd_release() {
     }
 }
 
+#if 0
 bool systemd_is_active(char *path) {
+    if (systemd_bus == NULL) {
+        return false;
+    }
     sd_bus_error err = SD_BUS_ERROR_NULL;
     char *msg = NULL;
 
@@ -43,16 +49,20 @@ bool systemd_is_active(char *path) {
         return true;
     }
 }
+#endif
 
-bool systemd_reload() {
+int systemd_reload() {
+    if (systemd_bus == NULL) {
+        return 1;
+    }
     sd_bus_error error _cleanup_(sd_bus_error_free) = SD_BUS_ERROR_NULL;
     if (sd_bus_call_method(systemd_bus, SYSTEMD_DESTINATION, SYSTEMD_PATH, SYSTEMD_INTERFACE_MANAGER, "Reload",  &error, NULL, NULL) < 0) {
         logging(LOGGING_ERROR, "Failed to call Reload method, error: %s", error.message);
-        return false;
+        return 1;
     }
-    return true;
+    return 0;
 }
-
+#if 0
 bool systemd_start_unit_no_wait(const char *unit) {
     // This should only be used for systems. 
     logging(LOGGING_DEBUG, "Starting systemd unit '%s', no wait", unit);
@@ -63,32 +73,184 @@ bool systemd_start_unit_no_wait(const char *unit) {
     }
     return true;
 }
+#endif
 
-bool systemd_start_unit_barebone(const char *unit, uint32_t *job_id) {
+struct systemd_mount_unit_helper *systemd_get_units() {
+    DIR *dir = opendir(SYSTEMD_UNIT_DIR);
+    if (dir == NULL) {
+        logging(LOGGING_ERROR, "Failed to open '"SYSTEMD_UNIT_DIR"' to scan systemd mount units");
+        return NULL;
+    }
+    struct dirent *dir_entry;
+    struct systemd_mount_unit_helper *helper = NULL;
+    struct systemd_mount_unit *mount, *buffer;
+    size_t len;
+    size_t len_system;
+    bool root;
+    while ((dir_entry = readdir(dir))) {
+        switch (dir_entry->d_type) {
+            case DT_REG:
+            case DT_LNK:
+                break;
+            default:
+                continue;
+        }
+        if ((len = strlen(dir_entry->d_name)) < len_systemd_mount_root) {
+            continue;
+        }
+        if (len > 255) {
+            logging(LOGGING_WARNING, "File name too long (this hould not happen), ignored: %s", dir_entry->d_name);
+        }
+        if (strcmp(dir_entry->d_name + len - len_systemd_suffix, SYSTEMD_MOUNT_SUFFIX) || strncmp(dir_entry->d_name, SYSTEMD_MOUNT_ROOT, len_systemd_mount_root)) {
+            continue;
+        }
+        if (helper == NULL) {
+            if ((helper = malloc(sizeof(struct systemd_mount_unit_helper))) == NULL) {
+                logging(LOGGING_ERROR, "Failed to allocate memory for systemd mount unit helper!");
+                goto free_dir;
+            }
+            if ((helper->mounts = malloc(sizeof(struct systemd_mount_unit)*ALLOC_BASE_SIZE)) == NULL) {
+                logging(LOGGING_ERROR, "Failed to allocate memory for systemd mount units!");
+                goto free_helper;
+            }
+            helper->count = 0;
+            helper->root = NULL;
+            helper->alloc_mounts = ALLOC_BASE_SIZE;
+        }
+        if (++(helper->count) > helper->alloc_mounts) {
+            helper->alloc_mounts *= ALLOC_MULTIPLIER;
+            buffer = realloc(helper->mounts, sizeof(struct systemd_mount_unit)*(helper->alloc_mounts));
+            if (buffer) {
+                helper->mounts = buffer;
+            } else {
+                logging(LOGGING_ERROR, "Failed to reallocate for systemd mount units");
+                goto free_mounts;
+            }
+        }
+        len_system = len - len_systemd_suffix - len_systemd_mount_root;
+        if (len_system) {
+            // logging(LOGGING_INFO, "Encountered a systemd mount unit that possibly provides mount for system: %s", dir_entry->d_name); 
+            if (--len_system == 0 || dir_entry->d_name[len_systemd_mount_root] != '-') {
+                logging(LOGGING_INFO, "Omitted systemd mount unit %s");
+                continue;
+            }
+            if (len_system == len_systemd_reserved_mark) {
+                if (!strncmp(SYSTEMD_SYSTEM_RESERVED_MARK, dir_entry->d_name+len_systemd_mount_root+1, len_systemd_reserved_mark)) {
+                    logging(LOGGING_WARNING, "Ignored systemd mount unit %s since the system it provides ("SYSTEMD_SYSTEM_RESERVED_MARK") is reserved", dir_entry->d_name);
+                    continue;
+                }
+            }
+            if (len_system == len_systemd_reserved_ports_scripts) {
+                if (!strncmp(SYSTEMD_SYSTEM_RESERVED_PORTS_SCRIPTS, dir_entry->d_name+len_systemd_mount_root+1, len_systemd_reserved_ports_scripts)) {
+                    logging(LOGGING_WARNING, "Ignored systemd mount unit %s since the system it provides ("SYSTEMD_SYSTEM_RESERVED_PORTS_SCRIPTS") is reserved", dir_entry->d_name);
+                    continue;
+                }
+            }
+            mount = helper->mounts + helper->count - 1;
+            root = false;
+        } else {
+            // logging(LOGGING_INFO, "Encountered a systemd mount unit that possibly provides mount for roms root: %s", dir_entry->d_name); 
+            if (helper->root) {
+                logging(LOGGING_WARNING, "Multiple systemd units provided mount for roms root are found, only the first one will be used");
+                continue;
+            }
+            helper->root = (mount = helper->mounts + helper->count - 1);
+            root = true;
+        }
+        if ((mount->name = malloc((len+1)*sizeof(char))) == NULL) {
+            logging(LOGGING_ERROR, "Failed to allocate memory for system mount unit's name");
+            goto free_mounts;
+        }
+        if ((mount->system = malloc((len_system+1)*sizeof(char))) == NULL) {
+            free(mount->name);
+            logging(LOGGING_ERROR, "Failed to allocate memory for system mount unit's system name");
+            goto free_mounts;
+        }
+        strcpy(mount->name, dir_entry->d_name);
+        strncpy(mount->system, dir_entry->d_name+len_systemd_mount_root+1-root, len_system);
+        mount->system[len_system] = '\0';
+        if (mount->system[0]) {
+            logging(LOGGING_INFO, "Found systemd mount unit '%s', providing mount for system '%s'", mount->name, mount->system);
+        } else {
+            logging(LOGGING_INFO, "Found systemd mount unit '%s', providing mount for roms dir itself", mount->name);
+        }
+    }
+    if (helper) {
+        if (helper->count > 1) {
+            qsort(helper->mounts, helper->count, sizeof(struct systemd_mount_unit), sort_compare_systemd_mount_unit);
+            // Root might change
+            if (helper->root && helper->root->system[0] != '\0') {
+                logging(LOGGING_DEBUG, "Root pointer not root anymore due to sorting, finding it again");
+                for (unsigned int i=0; i<helper->count; ++i) {
+                    if ((helper->mounts+i)->system[0] == '\0') {
+                        helper->root = helper->mounts+i;
+                        break;
+                    }
+                }
+            }
+            logging(LOGGING_DEBUG, "Sorted %d systemd mount units alphabetically", helper->count);
+        }
+        logging(LOGGING_DEBUG, "Found %u usable systemd mount units", helper->count);
+    }
+    closedir(dir);
+    return helper;
+
+free_mounts:
+    if (--(helper->count)) {
+        for (unsigned int i=0; i<helper->count; ++i) {
+            free((helper->mounts+i)->name);
+            free((helper->mounts+i)->system);
+        }
+        free(helper->mounts);
+    }
+free_helper:
+    free(helper);
+free_dir:
+    closedir(dir);
+    return NULL;
+}
+
+void systemd_mount_unit_helper_free(struct systemd_mount_unit_helper **shelper) {
+    if (*shelper) {
+        struct systemd_mount_unit *unit;
+        if ((*shelper)->count) {
+            for (unsigned int i=0; i<(*shelper)->count; ++i) {
+                unit = (*shelper)->mounts + i;
+                free(unit->name);
+                free(unit->system);
+            }
+            free((*shelper)->mounts);
+        }
+        free(*shelper);
+        *shelper = NULL;
+    }
+}
+
+static int systemd_start_unit_barebone(const char *unit, uint32_t *job_id) {
     sd_bus_error error _cleanup_(sd_bus_error_free) = SD_BUS_ERROR_NULL;
     sd_bus_message *reply _cleanup_(sd_bus_message_unrefp) = NULL;
     if (sd_bus_call_method(systemd_bus, SYSTEMD_DESTINATION, SYSTEMD_PATH, SYSTEMD_INTERFACE_MANAGER, "StartUnit", &error, &reply, "ss", unit, "replace") < 0) {
         logging(LOGGING_ERROR, "Failed to call StartUnit method of systemd, error: %s", error.message);
-        return false;
+        return 1;
     }
     if (reply == NULL) {
         logging(LOGGING_ERROR, "Got no reply from systemd, dont know what job it started, assuming failed");
-        return false;
+        return 1;
     }
     char *job;
     if (sd_bus_message_read(reply, "o", &job) < 0) {
         logging(LOGGING_ERROR, "Failed to read systemd message, assuming failed");
-        return false;
+        return 1;
     }
     if (job == NULL) {
         logging(LOGGING_ERROR, "Got no valid job object path, can not confirm if started successfully, assuming failed");
-        return false;
+        return 1;
     }
     *job_id = strtoul(job + len_systemd_job_prefix, NULL, 10);
-    return true;
+    return 0;
 }
 
-bool systemd_is_job_success(const char *result) {
+static bool systemd_is_job_success(const char *result) {
     logging(LOGGING_INFO, "Job finished, checking result");
     if (result) {
         if (strcmp(result, "done")) {
@@ -104,17 +266,17 @@ bool systemd_is_job_success(const char *result) {
     }
 }
 
-bool systemd_start_unit(const char *unit) {
+int systemd_start_unit(const char *unit) {
     // Since we handle all these mount units by ourselves, overlapped enabled systemd mount units should be disabled during init:
     // rm -f /storage/.config/system.d/*.wants/storage-roms*.mount
     sd_bus_slot *slot _cleanup_(sd_bus_slot_unrefp) = NULL;
     if (sd_bus_match_signal(systemd_bus, &slot, SYSTEMD_DESTINATION, SYSTEMD_PATH, SYSTEMD_INTERFACE_MANAGER, "JobRemoved", NULL, NULL) < 0) {
         logging(LOGGING_ERROR, "Failed to match systemd signal, have not started job yet");
-        return false;
+        return 1;
     }
     uint32_t job_id;
-    if (!systemd_start_unit_barebone(unit, &job_id)) {
-        return false;
+    if (systemd_start_unit_barebone(unit, &job_id)) {
+        return 1;
     }
     logging(LOGGING_INFO, "Started systemd job '%"PRIu32"', waiting for it to finish", job_id);
     uint32_t id;
@@ -129,26 +291,13 @@ bool systemd_start_unit(const char *unit) {
                     logging(LOGGING_WARNING, "Failed to read systemd message");
                     if (++failed == 3) {
                         logging(LOGGING_ERROR, "Failed to read for 3 times, assuming job failed");
-                        return false;
+                        return 1;
                     }
                     continue;
                 }
                 logging(LOGGING_DEBUG, "Got message, ID: %"PRIu32, id);
                 if (id == job_id) {
-                    return systemd_is_job_success(result);
-                    // logging(LOGGING_INFO, "Job finished, checking result");
-                    // if (result) {
-                    //     if (strcmp(result, "done")) {
-                    //         logging(LOGGING_ERROR, "Job failed");
-                    //         return false;
-                    //     } else {
-                    //         logging(LOGGING_INFO, "Job finished successfully");
-                    //         return true;
-                    //     }
-                    // } else {
-                    //     logging(LOGGING_ERROR, "Job result invalid, assuming failed");
-                    //     return false;
-                    // }
+                    return !systemd_is_job_success(result);
                 }
             }
         }
@@ -156,7 +305,7 @@ bool systemd_start_unit(const char *unit) {
         sleep(1);
     }
     logging(LOGGING_WARNING, "Waited timeout after %d seconds, assumming job failed", SYSTEMD_START_TIMEOUT);
-    return false;
+    return 1;
 }
 
 struct eemount_finished_helper *systemd_start_unit_systems(struct systemd_mount_unit_helper *shelper) {
@@ -182,7 +331,7 @@ struct eemount_finished_helper *systemd_start_unit_systems(struct systemd_mount_
             continue;
         }
         job = jobs + job_array_id++;
-        if (!systemd_start_unit_barebone(unit->name, &(job->job_id))) {
+        if (systemd_start_unit_barebone(unit->name, &(job->job_id))) {
             return NULL;
         }
         job->system = unit->system;
@@ -320,157 +469,6 @@ static char *systemd_system_from_name(const char *name) {
     return system;
 }
 */
-
-void systemd_mount_unit_helper_free(struct systemd_mount_unit_helper **shelper) {
-    if (*shelper) {
-        struct systemd_mount_unit *unit;
-        if ((*shelper)->count) {
-            for (unsigned int i=0; i<(*shelper)->count; ++i) {
-                unit = (*shelper)->mounts + i;
-                free(unit->name);
-                free(unit->system);
-            }
-            free((*shelper)->mounts);
-        }
-        free(*shelper);
-        *shelper = NULL;
-    }
-}
-
-struct systemd_mount_unit_helper *systemd_get_units() {
-    DIR *dir = opendir(SYSTEMD_UNIT_DIR);
-    if (dir == NULL) {
-        logging(LOGGING_ERROR, "Failed to open '"SYSTEMD_UNIT_DIR"' to scan systemd mount units");
-        return NULL;
-    }
-    struct dirent *dir_entry;
-    struct systemd_mount_unit_helper *helper = NULL;
-    struct systemd_mount_unit *mount, *buffer;
-    size_t len;
-    size_t len_system;
-    bool root;
-    while ((dir_entry = readdir(dir))) {
-        switch (dir_entry->d_type) {
-            case DT_REG:
-            case DT_LNK:
-                break;
-            default:
-                continue;
-        }
-        if ((len = strlen(dir_entry->d_name)) < len_systemd_mount_root) {
-            continue;
-        }
-        if (len > 255) {
-            logging(LOGGING_WARNING, "File name too long (this hould not happen), ignored: %s", dir_entry->d_name);
-        }
-        if (strcmp(dir_entry->d_name + len - len_systemd_suffix, SYSTEMD_MOUNT_SUFFIX) || strncmp(dir_entry->d_name, SYSTEMD_MOUNT_ROOT, len_systemd_mount_root)) {
-            continue;
-        }
-        if (helper == NULL) {
-            if ((helper = malloc(sizeof(struct systemd_mount_unit_helper))) == NULL) {
-                logging(LOGGING_ERROR, "Failed to allocate memory for systemd mount unit helper!");
-                goto free_dir;
-            }
-            if ((helper->mounts = malloc(sizeof(struct systemd_mount_unit)*ALLOC_BASE_SIZE)) == NULL) {
-                logging(LOGGING_ERROR, "Failed to allocate memory for systemd mount units!");
-                goto free_helper;
-            }
-            helper->count = 0;
-            helper->root = NULL;
-            helper->alloc_mounts = ALLOC_BASE_SIZE;
-        }
-        if (++(helper->count) > helper->alloc_mounts) {
-            helper->alloc_mounts *= ALLOC_MULTIPLIER;
-            buffer = realloc(helper->mounts, sizeof(struct systemd_mount_unit)*(helper->alloc_mounts));
-            if (buffer) {
-                helper->mounts = buffer;
-            } else {
-                logging(LOGGING_ERROR, "Failed to reallocate for systemd mount units");
-                goto free_mounts;
-            }
-        }
-        len_system = len - len_systemd_suffix - len_systemd_mount_root;
-        if (len_system) {
-            // logging(LOGGING_INFO, "Encountered a systemd mount unit that possibly provides mount for system: %s", dir_entry->d_name); 
-            if (--len_system == 0 || dir_entry->d_name[len_systemd_mount_root] != '-') {
-                logging(LOGGING_INFO, "Omitted systemd mount unit %s");
-                continue;
-            }
-            if (len_system == len_systemd_reserved_mark) {
-                if (!strncmp(SYSTEMD_SYSTEM_RESERVED_MARK, dir_entry->d_name+len_systemd_mount_root+1, len_systemd_reserved_mark)) {
-                    logging(LOGGING_WARNING, "Ignored systemd mount unit %s since the system it provides ("SYSTEMD_SYSTEM_RESERVED_MARK") is reserved", dir_entry->d_name);
-                    continue;
-                }
-            }
-            if (len_system == len_systemd_reserved_ports_scripts) {
-                if (!strncmp(SYSTEMD_SYSTEM_RESERVED_PORTS_SCRIPTS, dir_entry->d_name+len_systemd_mount_root+1, len_systemd_reserved_ports_scripts)) {
-                    logging(LOGGING_WARNING, "Ignored systemd mount unit %s since the system it provides ("SYSTEMD_SYSTEM_RESERVED_PORTS_SCRIPTS") is reserved", dir_entry->d_name);
-                    continue;
-                }
-            }
-            mount = helper->mounts + helper->count - 1;
-            root = false;
-        } else {
-            // logging(LOGGING_INFO, "Encountered a systemd mount unit that possibly provides mount for roms root: %s", dir_entry->d_name); 
-            if (helper->root) {
-                logging(LOGGING_WARNING, "Multiple systemd units provided mount for roms root are found, only the first one will be used");
-                continue;
-            }
-            helper->root = (mount = helper->mounts + helper->count - 1);
-            root = true;
-        }
-        if ((mount->name = malloc((len+1)*sizeof(char))) == NULL) {
-            logging(LOGGING_ERROR, "Failed to allocate memory for system mount unit's name");
-            goto free_mounts;
-        }
-        if ((mount->system = malloc((len_system+1)*sizeof(char))) == NULL) {
-            free(mount->name);
-            logging(LOGGING_ERROR, "Failed to allocate memory for system mount unit's system name");
-            goto free_mounts;
-        }
-        strcpy(mount->name, dir_entry->d_name);
-        strncpy(mount->system, dir_entry->d_name+len_systemd_mount_root+1-root, len_system);
-        mount->system[len_system] = '\0';
-        if (mount->system[0]) {
-            logging(LOGGING_INFO, "Found systemd mount unit '%s', providing mount for system '%s'", mount->name, mount->system);
-        } else {
-            logging(LOGGING_INFO, "Found systemd mount unit '%s', providing mount for roms dir itself", mount->name);
-        }
-    }
-    if (helper) {
-        if (helper->count > 1) {
-            qsort(helper->mounts, helper->count, sizeof(struct systemd_mount_unit), sort_compare_systemd_mount_unit);
-            // Root might change
-            if (helper->root && helper->root->system[0] != '\0') {
-                logging(LOGGING_DEBUG, "Root pointer not root anymore due to sorting, finding it again");
-                for (unsigned int i=0; i<helper->count; ++i) {
-                    if ((helper->mounts+i)->system[0] == '\0') {
-                        helper->root = helper->mounts+i;
-                        break;
-                    }
-                }
-            }
-            logging(LOGGING_DEBUG, "Sorted %d systemd mount units alphabetically", helper->count);
-        }
-        logging(LOGGING_DEBUG, "Found %u usable systemd mount units", helper->count);
-    }
-    closedir(dir);
-    return helper;
-
-free_mounts:
-    if (--(helper->count)) {
-        for (unsigned int i=0; i<helper->count; ++i) {
-            free((helper->mounts+i)->name);
-            free((helper->mounts+i)->system);
-        }
-        free(helper->mounts);
-    }
-free_helper:
-    free(helper);
-free_dir:
-    closedir(dir);
-    return NULL;
-}
 
 #ifdef SYSTEMD_USE_DBUS_SCANNING
 void systemd_mount_free(struct systemd_mount *mount) {

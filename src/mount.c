@@ -580,7 +580,7 @@ static int eemount_mount_root(struct systemd_mount_unit_helper *shelper, struct 
         return -1;
     }
     // Only one providing /storage/roms, that is storage-roms.mount
-    if (shelper && shelper->root && systemd_start_unit(shelper->root->name)) {
+    if (shelper && shelper->root && !systemd_start_unit(shelper->root->name)) {
         logging(LOGGING_INFO, "Successfully mounted "MOUNT_POINT_ROMS" through systemd");
         if (!eemount_mount_partition_eeroms(MOUNT_POINT_EXT)) {
             eemount_mount_dir_update(MOUNT_POINT_EXT"/.update");
