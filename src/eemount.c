@@ -1,4 +1,4 @@
-#include "mount_p.h"
+#include "eemount_p.h"
 
 struct eemount_table* eemount_get_table() {
     struct eemount_table *table = malloc(sizeof(struct eemount_table));
@@ -12,9 +12,9 @@ struct eemount_table* eemount_get_table() {
     }
     table->count = 0;
     table->alloc_entries = ALLOC_BASE_SIZE;
-    FILE *fp = fopen(MOUNT_MOUNTINFO, "r");
+    FILE *fp = fopen(EEMOUNT_MOUNTINFO, "r");
     if (fp == NULL) {
-        logging(LOGGING_ERROR, "Failed to open '"MOUNT_MOUNTINFO"' to read mounted table");
+        logging(LOGGING_ERROR, "Failed to open '"EEMOUNT_MOUNTINFO"' to read mounted table");
         goto free_entries;
     }
     char *line;
@@ -218,20 +218,20 @@ static int eemount_mount_dir_update(const char* path) {
     /* ONLY call this after EEROMS is successfully mounted 
        Otherwise this must be a util_mkdir_recursive() call since the dir itself (path) is not guaranteed to exist
     */
-    logging(LOGGING_INFO, "Trying to mount '%s' to '"MOUNT_POINT_UPDATE"'", path);
-    if (eemount_is_mount_point(MOUNT_POINT_UPDATE, NULL)) {
-        logging(LOGGING_INFO, "'"MOUNT_POINT_UPDATE"' already a mount point, no need to mount");
+    logging(LOGGING_INFO, "Trying to mount '%s' to '"PATH_DIR_UPDATE "'", path);
+    if (eemount_is_mount_point(PATH_DIR_UPDATE , NULL)) {
+        logging(LOGGING_INFO, "'"PATH_DIR_UPDATE "' already a mount point, no need to mount");
         return 0;
     }
     if (util_mkdir(path, 0755)) {
         logging(LOGGING_ERROR, "Failed to create/confirm folder '%s'", path);
         return 1;
     }
-    if (mount(path, MOUNT_POINT_UPDATE, NULL, MS_BIND, NULL)) {
-        logging(LOGGING_ERROR, "Failed to bind '%s' to '"MOUNT_POINT_UPDATE"'");
+    if (mount(path, PATH_DIR_UPDATE , NULL, MS_BIND, NULL)) {
+        logging(LOGGING_ERROR, "Failed to bind '%s' to '"PATH_DIR_UPDATE "'");
         return 1;
     } else {
-        logging(LOGGING_INFO, "Successfully mounted '"MOUNT_POINT_UPDATE"'");
+        logging(LOGGING_INFO, "Successfully mounted '"PATH_DIR_UPDATE "'");
         return 0;
     }
 }
@@ -248,10 +248,10 @@ static int eemount_mount_partition_eeroms(const char *mount_point) {
     logging(LOGGING_INFO, "Trying to mount EEROMS to '%s'", mount_point);
     struct eemount_table *table = eemount_get_table();
     if (table) { // If we can get partition table, try the one providing .update and the 3rd partition of boot drive, this is optimal
-        logging(LOGGING_INFO, "Trying to get the underlying partition of "MOUNT_POINT_UPDATE);
-        struct eemount_entry *entry = eemount_find_entry_by_mount_point(MOUNT_POINT_UPDATE, table);
+        logging(LOGGING_INFO, "Trying to get the underlying partition of "PATH_DIR_UPDATE );
+        struct eemount_entry *entry = eemount_find_entry_by_mount_point(PATH_DIR_UPDATE , table);
         if (entry) {
-            logging(LOGGING_INFO, "'"MOUNT_POINT_UPDATE"' is mounted, using the underlying partition %s as EEROMS", entry->mount_source);
+            logging(LOGGING_INFO, "'"PATH_DIR_UPDATE "' is mounted, using the underlying partition %s as EEROMS", entry->mount_source);
             if (mnt_context_set_source(cxt, entry->mount_source) || mnt_context_set_options(cxt, entry->mount_options) || mnt_context_set_target(cxt, mount_point) || mnt_context_mount(cxt)) {
                 logging(LOGGING_ERROR, "Failed to mount the partition %s", entry->mount_source);
             } else {
@@ -315,45 +315,45 @@ static int eemount_mount_partition_eeroms(const char *mount_point) {
 
 
 static int eemount_umount_roms() {
-    logging(LOGGING_INFO, "Umounting all mount points under "MOUNT_POINT_ROMS"...");
+    logging(LOGGING_INFO, "Umounting all mount points under "PATH_DIR_ROMS"...");
     struct eemount_table *table = eemount_get_table();
     if (table) {
         struct eemount_entry *entry;
         for (int i=0; i<2; ++i) {
             switch (i) {
                 case 0:
-                    entry = eemount_find_entry_by_mount_point(MOUNT_POINT_ROMS, table);
+                    entry = eemount_find_entry_by_mount_point(PATH_DIR_ROMS, table);
                     break;
                 case 1:
-                    entry = eemount_find_entry_by_mount_point_start_with(MOUNT_POINT_ROMS"/", table, len_mount_point_roms+1);
+                    entry = eemount_find_entry_by_mount_point_start_with(PATH_DIR_ROMS"/", table, len_path_dir_roms+1);
                     break;
             }
             while (entry) {
                 if (eemount_umount_entry_recursive(entry, table, 0)) {
                     eemount_free_table(&table);
-                    logging(LOGGING_INFO, "Failed to umount all mount points under "MOUNT_POINT_ROMS"");
+                    logging(LOGGING_INFO, "Failed to umount all mount points under "PATH_DIR_ROMS"");
                     return 1;
                 }
                 eemount_free_table(&table);
                 if ((table = eemount_get_table()) == NULL) {
-                    logging(LOGGING_INFO, "Failed to umount all mount points under "MOUNT_POINT_ROMS"");
+                    logging(LOGGING_INFO, "Failed to umount all mount points under "PATH_DIR_ROMS"");
                     return 1;
                 }
                 switch (i) {
                     case 0:
-                        entry = eemount_find_entry_by_mount_point(MOUNT_POINT_ROMS, table);
+                        entry = eemount_find_entry_by_mount_point(PATH_DIR_ROMS, table);
                         break;
                     case 1:
-                        entry = eemount_find_entry_by_mount_point_start_with(MOUNT_POINT_ROMS"/", table, len_mount_point_roms+1);
+                        entry = eemount_find_entry_by_mount_point_start_with(PATH_DIR_ROMS"/", table, len_path_dir_roms+1);
                         break;
                 }
             }
         }
         eemount_free_table(&table);
-        logging(LOGGING_INFO, "Successfully umounted all mount points under "MOUNT_POINT_ROMS"");
+        logging(LOGGING_INFO, "Successfully umounted all mount points under "PATH_DIR_ROMS"");
         return 0;
     } else {
-        logging(LOGGING_INFO, "Failed to umount all mount points under "MOUNT_POINT_ROMS"");
+        logging(LOGGING_INFO, "Failed to umount all mount points under "PATH_DIR_ROMS"");
         return 1;
     }
 }
@@ -361,31 +361,31 @@ static int eemount_umount_roms() {
 
 
 static int eemount_mount_root(struct systemd_mount_unit_helper *shelper, struct drive_helper *dhelper) {
-    if (util_mkdir(MOUNT_POINT_ROMS, 0755)) {
-        logging(LOGGING_ERROR, "Can not create/valid directory '"MOUNT_POINT_ROMS"', all mount operations cancelled");
+    if (util_mkdir(PATH_DIR_ROMS, 0755)) {
+        logging(LOGGING_ERROR, "Can not create/valid directory '"PATH_DIR_ROMS"', all mount operations cancelled");
         return -1;
     }
     // Only one providing /storage/roms, that is storage-roms.mount
     if (shelper && shelper->root && !systemd_start_unit(shelper->root->name)) {
-        logging(LOGGING_INFO, "Successfully mounted "MOUNT_POINT_ROMS" through systemd");
-        if (!eemount_mount_partition_eeroms(MOUNT_POINT_EXT)) {
-            eemount_mount_dir_update(MOUNT_POINT_EXT"/.update");
+        logging(LOGGING_INFO, "Successfully mounted "PATH_DIR_ROMS" through systemd");
+        if (!eemount_mount_partition_eeroms(PATH_DIR_EXTERNAL_EEROMS)) {
+            eemount_mount_dir_update(PATH_DIR_UPDATE_EXT);
         }
         return 0;
     }
     if (dhelper) {
-        char path[len_mount_ext_parent + 262];
+        char path[len_path_dir_external + 262];
         char *name;
         // Multiple can provide /storage/roms, we go alphabetically
         for (unsigned i=0; i<dhelper->count; ++i) {
             if ((dhelper->drives+i)->count == 0) { 
                 name = (dhelper->drives+i)->name;
-                snprintf(path, len_mount_ext_parent + strlen(name) + 7, MOUNT_EXT_PARENT"/%s/roms", name);
-                logging(LOGGING_INFO, "Binding '%s' to '"MOUNT_POINT_ROMS"'", path);
-                if (!mount(path, MOUNT_POINT_ROMS, NULL, MS_BIND, NULL)) {
-                    logging(LOGGING_INFO, "Successfully binded "MOUNT_POINT_ROMS);
-                    if (!eemount_mount_partition_eeroms(MOUNT_POINT_EXT)) {
-                        eemount_mount_dir_update(MOUNT_POINT_EXT"/.update");
+                snprintf(path, len_path_dir_external + strlen(name) + 7, PATH_DIR_EXTERNAL"/%s/roms", name);
+                logging(LOGGING_INFO, "Binding '%s' to '"PATH_DIR_ROMS"'", path);
+                if (!mount(path, PATH_DIR_ROMS, NULL, MS_BIND, NULL)) {
+                    logging(LOGGING_INFO, "Successfully binded "PATH_DIR_ROMS);
+                    if (!eemount_mount_partition_eeroms(PATH_DIR_EXTERNAL_EEROMS)) {
+                        eemount_mount_dir_update(PATH_DIR_UPDATE_EXT);
                     }
                     return 0;
                 }
@@ -393,8 +393,8 @@ static int eemount_mount_root(struct systemd_mount_unit_helper *shelper, struct 
         }
     }
     // Since all failed, try to get EEROMS back
-    if (!eemount_mount_partition_eeroms(MOUNT_POINT_ROMS)) {
-        eemount_mount_dir_update(MOUNT_POINT_ROMS"/.update"); // Optionally mount .update
+    if (!eemount_mount_partition_eeroms(PATH_DIR_ROMS)) {
+        eemount_mount_dir_update(PATH_DIR_UPDATE_INT); // Optionally mount .update
         return 0;
     }
     return 1;
@@ -404,8 +404,8 @@ static struct eemount_finished_helper *eemount_mount_drive_systems(struct drive_
     unsigned int i, j, k;
     struct drive *drive;
     char *dsystem, **buffer;
-    char path_source[len_mount_ext_parent+517]; // +1 for /, +255 for drive name, +1 for /, +4 for roms, +255 for system name, +1 for null
-    char path_target[len_mount_point_roms+257]; // +1 for /, +255 for name, +1 for null
+    char path_source[len_path_dir_external+517]; // +1 for /, +255 for drive name, +1 for /, +4 for roms, +255 for system name, +1 for null
+    char path_target[len_path_dir_roms+257]; // +1 for /, +255 for name, +1 for null
     size_t len_system;
     size_t len_drive;
     bool unique;
@@ -428,7 +428,7 @@ static struct eemount_finished_helper *eemount_mount_drive_systems(struct drive_
             if (unique) {
                 logging(LOGGING_WARNING, "System '%s' not mounted yet, trying to bind it", dsystem);
                 len_system = strlen(dsystem);
-                snprintf(path_target, len_mount_point_roms + len_system + 2, MOUNT_POINT_ROMS"/%s", dsystem);
+                snprintf(path_target, len_path_dir_roms + len_system + 2, PATH_DIR_ROMS"/%s", dsystem);
                 if (util_mkdir(path_target, 0755)) {
                     logging(LOGGING_ERROR, "Failed to binding system %s under drive %s on %s as we failed to confirm the target is a folder and further create if not", dsystem, drive->name, path_target);
                     continue;
@@ -436,7 +436,7 @@ static struct eemount_finished_helper *eemount_mount_drive_systems(struct drive_
                 if (len_drive == 0) {
                     len_drive = strlen(drive->name);
                 }
-                snprintf(path_source, len_mount_ext_parent + len_drive + len_system + 8, MOUNT_EXT_PARENT"/%s/roms/%s", drive->name, dsystem);
+                snprintf(path_source, len_path_dir_external + len_drive + len_system + 8, PATH_DIR_EXTERNAL"/%s/roms/%s", drive->name, dsystem);
                 logging(LOGGING_DEBUG, "Binding '%s' to '%s'", path_source, path_target);
                 if (mount(path_source, path_target, NULL, MS_BIND, NULL)) {
                     logging(LOGGING_ERROR, "Failed to bind '%s' to '%s'", path_source, path_target);
@@ -488,20 +488,20 @@ static struct eemount_finished_helper *eemount_mount_systems(struct systemd_moun
 
 static int eemount_mount_ports_scripts() {
     // ports on /storage/roms/ports_scripts type overlay (rw,relatime,lowerdir=/usr/bin/ports,upperdir=/emuelec/ports,workdir=/storage/.tmp/ports-workdir)
-    if (util_mkdir(MOUNT_POINT_PORTS_SCRIPTS, 0755)) {
+    if (util_mkdir(PATH_DIR_PSCRIPTS, 0755)) {
         return 1;
     }
     struct libmnt_context *cxt = mnt_new_context();
     if (cxt == NULL) {
-        logging(LOGGING_ERROR, "Failed to obtain mount context for "MOUNT_POINT_PORTS_SCRIPTS);
+        logging(LOGGING_ERROR, "Failed to obtain mount context for "PATH_DIR_PSCRIPTS);
         return 1;
     }
-    if (mnt_context_set_source(cxt, MOUNT_PORTS_SCRIPTS_NAME) || mnt_context_set_fstype(cxt, MOUNT_PORTS_SCRIPTS_FS) || mnt_context_set_target(cxt, MOUNT_POINT_PORTS_SCRIPTS) || mnt_context_set_options(cxt, MOUNT_PORTS_SCRIPTS_OPTIONS) || mnt_context_mount(cxt)) {
-        logging(LOGGING_ERROR, "Failed to mount "MOUNT_PORTS_SCRIPTS_NAME);
+    if (mnt_context_set_source(cxt, EEMOUNT_PORTS_SCRIPTS_NAME) || mnt_context_set_fstype(cxt, EEMOUNT_PORTS_SCRIPTS_FS) || mnt_context_set_target(cxt, PATH_DIR_PSCRIPTS) || mnt_context_set_options(cxt, EEMOUNT_PORTS_SCRIPTS_OPTIONS) || mnt_context_mount(cxt)) {
+        logging(LOGGING_ERROR, "Failed to mount "EEMOUNT_PORTS_SCRIPTS_NAME);
         mnt_free_context(cxt);
         return 1;
     }
-    logging(LOGGING_INFO, "Successfully mounted "MOUNT_PORTS_SCRIPTS_NAME);
+    logging(LOGGING_INFO, "Successfully mounted "EEMOUNT_PORTS_SCRIPTS_NAME);
     mnt_free_context(cxt);
     return 0;
 }

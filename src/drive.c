@@ -5,14 +5,14 @@ static FILE *drive_check(const char *drive) {
     struct stat stat_mark;
     FILE *fp;
 
-    size_t len_path_mark = (sizeof(MOUNT_EXT_PARENT) + sizeof(MOUNT_EXT_ROMS_PARENT) + sizeof(MOUNT_EXT_MARK))/sizeof(char) + strlen(drive);
+    size_t len_path_mark = (sizeof(PATH_DIR_EXTERNAL) + sizeof(PATH_NAME_ROMS) + sizeof(PATH_NAME_MARK))/sizeof(char) + strlen(drive);
 
     if ((path_mark = malloc((len_path_mark + 1) * sizeof(char))) == NULL) {
         logging(LOGGING_ERROR, "Skipped external drive '%s': Failed to allocate memory for mark path under it", drive);
         return NULL;
     }
 
-    int len_path_mark_actual = snprintf(path_mark, len_path_mark + 1, MOUNT_EXT_PARENT"/%s/"MOUNT_EXT_ROMS_PARENT"/"MOUNT_EXT_MARK, drive);
+    int len_path_mark_actual = snprintf(path_mark, len_path_mark + 1, PATH_DIR_EXTERNAL"/%s/"PATH_NAME_ROMS"/"PATH_NAME_MARK, drive);
     if ((size_t)len_path_mark_actual != len_path_mark) {
         logging(LOGGING_ERROR, "Formatted mark path '%s' length is wrong: expected %zu, actual %d", path_mark, len_path_mark, len_path_mark_actual);
         goto free_mark;
@@ -71,26 +71,26 @@ static int drive_scan(struct drive *drive, FILE *fp) {
             logging(LOGGING_WARNING, "Ignored system '%s' defined for drive '%s' since the name contains illegal character", line, drive->name);
             continue;
         }
-        if (len_line == len_drive_reserved_ports_scripts) {
-            if (!strncmp(line, DRIVE_SYSTEM_RESERVED_PORTS_SCRIPTS, len_drive_reserved_ports_scripts)) {
-                logging(LOGGING_WARNING, "Ignored system '"DRIVE_SYSTEM_RESERVED_PORTS_SCRIPTS"' for drive '%s' since it's reserved", drive->name);
+        if (len_line == len_path_name_pscripts) {
+            if (!strncmp(line, PATH_NAME_PSCRIPTS, len_path_name_pscripts)) {
+                logging(LOGGING_WARNING, "Ignored system '"PATH_NAME_PSCRIPTS"' for drive '%s' since it's reserved", drive->name);
                 continue;
             }
         }
-        if (len_line == len_drive_reserved_mark) {
-            if (!strncmp(line, DRIVE_SYSTEM_RESERVED_MARK, len_drive_reserved_mark)) {
-                logging(LOGGING_WARNING, "Ignored system '"DRIVE_SYSTEM_RESERVED_MARK"' for drive '%s' since it's reserved", drive->name);
+        if (len_line == len_path_name_mark) {
+            if (!strncmp(line, PATH_NAME_MARK, len_path_name_mark)) {
+                logging(LOGGING_WARNING, "Ignored system '"PATH_NAME_MARK"' for drive '%s' since it's reserved", drive->name);
                 continue;
             }
         }
         if (path == NULL) {
             len_drive = strlen(drive->name);
-            if ((path = malloc((len_mount_ext_parent + len_drive + len_mount_ext_roms_parent + 259 )*sizeof(char))) == NULL) {
+            if ((path = malloc((len_path_dir_external + len_drive + len_path_name_roms + 259 )*sizeof(char))) == NULL) {
                 logging(LOGGING_ERROR, "Can not allocate memory for full path of external drive system");
                 goto free_systems;
             }
         }
-        snprintf(path, len_mount_ext_parent + len_drive + len_mount_ext_roms_parent + len_line + 4, MOUNT_EXT_PARENT"/%s/"MOUNT_EXT_ROMS_PARENT"/%s", drive->name, line);
+        snprintf(path, len_path_dir_external + len_drive + len_path_name_roms + len_line + 4, PATH_DIR_EXTERNAL"/%s/"PATH_NAME_ROMS"/%s", drive->name, line);
         logging(LOGGING_DEBUG, "Checking if external system directory '%s' exists and create it if neccessary", path);
         if (util_mkdir(path, 0755)) {
             logging(LOGGING_WARNING, "Failed to create/verify directory '%s', omitting corresponding system");
@@ -174,7 +174,7 @@ static bool drive_is_name_invalid(const char *name) {
             }
             break;
         case 'E':
-            if (!strcmp(name+1, DRIVE_NAME_RESERVED_EEROMS+1)) { // EEROMS
+            if (!strcmp(name+1, PATH_NAME_EEROMS+1)) { // EEROMS
                 return true;
             }
             break;
@@ -188,14 +188,14 @@ struct drive_helper *drive_get_mounts() {
     struct drive *drive, *buffer;
     struct drive_helper *drive_helper = NULL;
     FILE *fp;
-    int delay = eeconfig_get_int(MOUNT_EECONFIG_DELAY);
-    char *target = eeconfig_get_string(MOUNT_EECONFIG_DRIVE);
-    int retry = eeconfig_get_int(MOUNT_EECONFIG_RETRY);
+    int delay = eeconfig_get_int(DRIVE_EECONFIG_DELAY);
+    char *target = eeconfig_get_string(DRIVE_EECONFIG_DRIVE);
+    int retry = eeconfig_get_int(DRIVE_EECONFIG_RETRY);
     if (delay < 0) {
-        logging(LOGGING_WARNING, "Configuration '"MOUNT_EECONFIG_DELAY"' (time in seconds we should wait before each external drive scan) is set to a negative number %d, it is ignored and you should fix the config", delay);
+        logging(LOGGING_WARNING, "Configuration '"DRIVE_EECONFIG_DELAY"' (time in seconds we should wait before each external drive scan) is set to a negative number %d, it is ignored and you should fix the config", delay);
     }
     if (retry < 0) {
-        logging(LOGGING_WARNING, "Configuration '"MOUNT_EECONFIG_RETRY"' (counts we should retry scanning external drives) is set to a negative number %d, it is ignored and you should fix the config");
+        logging(LOGGING_WARNING, "Configuration '"DRIVE_EECONFIG_RETRY"' (counts we should retry scanning external drives) is set to a negative number %d, it is ignored and you should fix the config");
     } 
     for (int try = 0; try < retry+1; ++try) {
         /*  Only under specific conditions will we retry:
@@ -211,8 +211,8 @@ struct drive_helper *drive_get_mounts() {
             logging(LOGGING_INFO, "Waiting %d seconds before getting drive list...", delay);
             sleep(delay);
         }
-        if ((dir = opendir(MOUNT_EXT_PARENT)) == NULL) {
-            logging(LOGGING_ERROR, "Can not open '%s' to check all directories", MOUNT_EXT_PARENT);
+        if ((dir = opendir(PATH_DIR_EXTERNAL)) == NULL) {
+            logging(LOGGING_ERROR, "Can not open '%s' to check all directories", PATH_DIR_EXTERNAL);
             return NULL;
         }
         while ((dir_entry = readdir(dir))) {

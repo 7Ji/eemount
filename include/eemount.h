@@ -185,12 +185,6 @@ void eemount_free_table(struct eemount_table **table);
  * @return struct mount_helper* A pointer to mount_helper struct
  */
 
-#if 0
-struct mount_helper *mount_get_systems(struct systemd_mount_helper *systemd_helper, struct drive_helper *drive_helper);
-bool mount_prepare();
-bool mount_ports_scripts();
-#endif
-
 /**
  * @brief Perform the actual mounting routine
  * 

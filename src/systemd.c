@@ -25,12 +25,12 @@ int systemd_reload() {
         return 1;
     }
     sd_bus_slot *slot _cleanup_(sd_bus_slot_unrefp) = NULL;
-    if (sd_bus_match_signal(systemd_bus, &slot, SYSTEMD_DESTINATION, SYSTEMD_PATH, SYSTEMD_INTERFACE_MANAGER, "Reloading", NULL, NULL) < 0) {
+    if (sd_bus_match_signal(systemd_bus, &slot, SYSTEMD_NAME, SYSTEMD_PATH, SYSTEMD_INTERFACE_MANAGER, "Reloading", NULL, NULL) < 0) {
         logging(LOGGING_ERROR, "Failed to match systemd signal, have not reloaded yet");
         return 1;
     }
     sd_bus_error error _cleanup_(sd_bus_error_free) = SD_BUS_ERROR_NULL;
-    if (sd_bus_call_method(systemd_bus, SYSTEMD_DESTINATION, SYSTEMD_PATH, SYSTEMD_INTERFACE_MANAGER, "Reload",  &error, NULL, NULL) < 0) {
+    if (sd_bus_call_method(systemd_bus, SYSTEMD_NAME, SYSTEMD_PATH, SYSTEMD_INTERFACE_MANAGER, "Reload",  &error, NULL, NULL) < 0) {
         logging(LOGGING_ERROR, "Failed to call Reload method, error: %s", error.message);
         return 1;
     }
@@ -52,6 +52,7 @@ int systemd_reload() {
                 }
                 if (pending) {
                     if (!active) {
+                        logging(LOGGING_INFO, "Waiting 1 extra second due to systemd being dishonest about the daemon reload status...");
                         sleep(1);
                         logging(LOGGING_INFO, "Successfully reloaded systemd units");
                         return 0;
@@ -130,15 +131,15 @@ struct systemd_mount_unit_helper *systemd_get_units() {
                 logging(LOGGING_INFO, "Omitted systemd mount unit %s");
                 continue;
             }
-            if (len_system == len_systemd_reserved_mark) {
-                if (!strncmp(SYSTEMD_SYSTEM_RESERVED_MARK, dir_entry->d_name+len_systemd_mount_root+1, len_systemd_reserved_mark)) {
-                    logging(LOGGING_WARNING, "Ignored systemd mount unit %s since the system it provides ("SYSTEMD_SYSTEM_RESERVED_MARK") is reserved", dir_entry->d_name);
+            if (len_system == len_path_name_mark) {
+                if (!strncmp(PATH_NAME_MARK, dir_entry->d_name+len_systemd_mount_root+1, len_path_name_mark)) {
+                    logging(LOGGING_WARNING, "Ignored systemd mount unit %s since the system it provides ("PATH_NAME_MARK") is reserved", dir_entry->d_name);
                     continue;
                 }
             }
-            if (len_system == len_systemd_reserved_ports_scripts) {
-                if (!strncmp(SYSTEMD_SYSTEM_RESERVED_PORTS_SCRIPTS, dir_entry->d_name+len_systemd_mount_root+1, len_systemd_reserved_ports_scripts)) {
-                    logging(LOGGING_WARNING, "Ignored systemd mount unit %s since the system it provides ("SYSTEMD_SYSTEM_RESERVED_PORTS_SCRIPTS") is reserved", dir_entry->d_name);
+            if (len_system == len_path_name_pscripts) {
+                if (!strncmp(PATH_NAME_PSCRIPTS, dir_entry->d_name+len_systemd_mount_root+1, len_path_name_pscripts)) {
+                    logging(LOGGING_WARNING, "Ignored systemd mount unit %s since the system it provides ("PATH_NAME_PSCRIPTS") is reserved", dir_entry->d_name);
                     continue;
                 }
             }
@@ -225,7 +226,7 @@ void systemd_mount_unit_helper_free(struct systemd_mount_unit_helper **shelper) 
 static int systemd_start_unit_barebone(const char *unit, uint32_t *job_id) {
     sd_bus_error error _cleanup_(sd_bus_error_free) = SD_BUS_ERROR_NULL;
     sd_bus_message *reply _cleanup_(sd_bus_message_unrefp) = NULL;
-    if (sd_bus_call_method(systemd_bus, SYSTEMD_DESTINATION, SYSTEMD_PATH, SYSTEMD_INTERFACE_MANAGER, "StartUnit", &error, &reply, "ss", unit, "replace") < 0) {
+    if (sd_bus_call_method(systemd_bus, SYSTEMD_NAME, SYSTEMD_PATH, SYSTEMD_INTERFACE_MANAGER, "StartUnit", &error, &reply, "ss", unit, "replace") < 0) {
         logging(LOGGING_ERROR, "Failed to call StartUnit method of systemd, error: %s", error.message);
         return 1;
     }
@@ -266,7 +267,7 @@ int systemd_start_unit(const char *unit) {
     // Since we handle all these mount units by ourselves, overlapped enabled systemd mount units should be disabled during init:
     // rm -f /storage/.config/system.d/*.wants/storage-roms*.mount
     sd_bus_slot *slot _cleanup_(sd_bus_slot_unrefp) = NULL;
-    if (sd_bus_match_signal(systemd_bus, &slot, SYSTEMD_DESTINATION, SYSTEMD_PATH, SYSTEMD_INTERFACE_MANAGER, "JobRemoved", NULL, NULL) < 0) {
+    if (sd_bus_match_signal(systemd_bus, &slot, SYSTEMD_NAME, SYSTEMD_PATH, SYSTEMD_INTERFACE_MANAGER, "JobRemoved", NULL, NULL) < 0) {
         logging(LOGGING_ERROR, "Failed to match systemd signal, have not started job yet");
         return 1;
     }
@@ -313,7 +314,7 @@ struct eemount_finished_helper *systemd_start_unit_systems(struct systemd_mount_
         return NULL;
     }
     sd_bus_slot *slot _cleanup_(sd_bus_slot_unrefp) = NULL;
-    if (sd_bus_match_signal(systemd_bus, &slot, SYSTEMD_DESTINATION, SYSTEMD_PATH, SYSTEMD_INTERFACE_MANAGER, "JobRemoved", NULL, NULL) < 0) {
+    if (sd_bus_match_signal(systemd_bus, &slot, SYSTEMD_NAME, SYSTEMD_PATH, SYSTEMD_INTERFACE_MANAGER, "JobRemoved", NULL, NULL) < 0) {
         logging(LOGGING_ERROR, "Failed to match systemd signal, have not started job yet");
         return NULL;
     }

@@ -7,26 +7,29 @@
 #include "alloc.h"
 #include "sort.h"
 #include "util.h"
-#include "mount.h"
+#include "eemount.h"
+#include "paths.h"
 
-#define SYSTEMD_DESTINATION         "org.freedesktop.systemd1"
-#define SYSTEMD_INTERFACE_UNIT      SYSTEMD_DESTINATION".Unit"
-#define SYSTEMD_INTERFACE_MANAGER   SYSTEMD_DESTINATION".Manager"
-#define SYSTEMD_PATH                "/org/freedesktop/systemd1"
-#define SYSTEMD_PATH_UNIT           SYSTEMD_PATH"/unit"
-#define SYSTEMD_PATH_JOB            SYSTEMD_PATH"/job"
-#define SYSTEMD_MOUNT_ROOT          "storage-roms"
+#define SYSTEMD_NAME_ORG            "org"
+#define SYSTEMD_NAME_FREEDESKTOP    "freedesktop"
+#define SYSTEMD_NAME_SYSTEMD        "systemd1"
+#define SYSTEMD_NAME_UNIT           "Unit"
+#define SYSTEMD_NAME_MANAGER        "Manager"
+#define SYSTEMD_NAME_UNIT_LOWER     "unit"
+#define SYSTEMD_NAME_JOB            "job"
+#define SYSTEMD_NAME                SYSTEMD_NAME_ORG"."SYSTEMD_NAME_FREEDESKTOP"."SYSTEMD_NAME_SYSTEMD
+#define SYSTEMD_INTERFACE           SYSTEMD_NAME
+#define SYSTEMD_INTERFACE_UNIT      SYSTEMD_NAME"."SYSTEMD_NAME_UNIT
+#define SYSTEMD_INTERFACE_MANAGER   SYSTEMD_NAME"."SYSTEMD_NAME_MANAGER
+#define SYSTEMD_PATH                "/"SYSTEMD_NAME_ORG"/"SYSTEMD_NAME_FREEDESKTOP"/"SYSTEMD_NAME_SYSTEMD""
+#define SYSTEMD_PATH_UNIT           SYSTEMD_PATH"/"SYSTEMD_NAME_UNIT_LOWER
+#define SYSTEMD_PATH_JOB            SYSTEMD_PATH"/"SYSTEMD_NAME_JOB
+#define SYSTEMD_MOUNT_ROOT          PATH_NAME_STORAGE"-"PATH_NAME_ROMS
 #define SYSTEMD_MOUNT_SUFFIX        ".mount"
 #define SYSTEMD_MOUNT_PATTERN       SYSTEMD_MOUNT_ROOT"*"SYSTEMD_MOUNT_SUFFIX
 #define SYSTEMD_MOUNT_ROOT_UNIT     SYSTEMD_MOUNT_ROOT SYSTEMD_MOUNT_SUFFIX
-#define SYSTEMD_UNIT_DIR            "/storage/.config/system.d"
+#define SYSTEMD_UNIT_DIR            PATH_DIR_STORAGE"/.config/system.d"
 #define SYSTEMD_START_TIMEOUT       10
-
-#define SYSTEMD_SYSTEM_RESERVED_MARK              "emuelecroms"
-#define SYSTEMD_SYSTEM_RESERVED_PORTS_SCRIPTS     "ports_scripts"
-
-static const size_t len_systemd_reserved_mark = strlen(SYSTEMD_SYSTEM_RESERVED_MARK);
-static const unsigned int len_systemd_reserved_ports_scripts = strlen(SYSTEMD_SYSTEM_RESERVED_PORTS_SCRIPTS);
 
 static const size_t len_systemd_unit_dir = strlen(SYSTEMD_UNIT_DIR);
 static const size_t len_systemd_mount_root = strlen(SYSTEMD_MOUNT_ROOT);

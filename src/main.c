@@ -1,7 +1,7 @@
 #include "systemd.h"
 #include "eeconfig.h"
 #include "logging.h"
-#include "mount.h"
+#include "eemount.h"
 int main() {
     if (systemd_init_bus()) {
         logging(LOGGING_FATAL, "Failed to initialize systemd bus");
@@ -13,7 +13,7 @@ int main() {
     if (eemount_routine()) {
         logging(LOGGING_ERROR, "Mount routine failed");
     } else {
-        logging(LOGGING_INFO, "All mount successful, good retro-gaming");
+        logging(LOGGING_INFO, "All mount successful, happy retro-gaming");
     }
     systemd_release();
     eeconfig_close();
