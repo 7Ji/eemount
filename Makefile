@@ -3,6 +3,7 @@ DIR_INCLUDE = include
 DIR_SOURCE = src
 DIR_OBJECT = obj
 CC = gcc
+STRIP = strip
 CFLAGS = -I$(DIR_INCLUDE) -Wall -Wextra
 
 LDFLAGS = -lsystemd -lblkid -lmount
@@ -23,3 +24,12 @@ $(DIR_OBJECT)/%.o: $(DIR_SOURCE)/%.c $(INCLUDES)
 
 clean:
 	rm -f $(DIR_OBJECT)/*.o $(BINARY)
+
+ifeq ($(PREFIX),)
+    PREFIX := /usr/sbin
+endif
+
+install: $(BINARY)
+	install -d $(DESTDIR)$(PREFIX)
+	install -m 755 $< $(DESTDIR)$(PREFIX)/
+	$(STRIP) $(DESTDIR)$(PREFIX)/$<
