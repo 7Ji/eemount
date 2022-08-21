@@ -22,7 +22,7 @@ void eeconfig_close();
  * @brief Get a config value string
  * 
  * @param key The key string, without =, e.g. global.externaldrive
- * @return char* The value string, quotes in pair will be stripped
+ * @return char* The value string, quotes in pair will be stripped. NULL if nothing read (failed). The result should be freed by the caller
  */
 char* eeconfig_get_string(const char *key);
 

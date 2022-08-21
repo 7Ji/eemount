@@ -38,7 +38,7 @@ free_mark:
     return NULL;
 }
 
-static bool drive_scan(struct drive *drive, FILE *fp) {
+static int drive_scan(struct drive *drive, FILE *fp) {
     char *line, **system, **buffer;
     bool note_empty = false;
     bool illegal_char;
@@ -130,7 +130,7 @@ static bool drive_scan(struct drive *drive, FILE *fp) {
         qsort(drive->systems, drive->count, sizeof(char *), sort_compare_string);
         logging(LOGGING_DEBUG, "Sorted %d systems alphabetically of drive '%s'", drive->count, drive->name);
     }
-    return true;
+    return 0;
 
 free_system:
     free(path);
@@ -140,7 +140,7 @@ free_systems:
         free(drive->systems[i]);
     }
     free(drive->systems);
-    return false;
+    return 1;
 }
 
 static void drive_free(struct drive *drive) {
@@ -240,13 +240,8 @@ struct drive_helper *drive_get_mounts() {
                 drive_helper->alloc_drives = ALLOC_BASE_SIZE;
             }
             if ((++(drive_helper->count)) > drive_helper->alloc_drives) {
-                // if (drive_helper->alloc_drives) {
                 drive_helper->alloc_drives *= ALLOC_MULTIPLIER;
                 buffer = realloc(drive_helper->drives, sizeof(struct drive)*(drive_helper->alloc_drives));
-                // } else {
-                //     drive_helper->alloc_drives = ALLOC_BASE_SIZE;
-                //     buffer = malloc(sizeof(struct drive)*ALLOC_BASE_SIZE);
-                // }
                 if (buffer) {
                     drive_helper->drives = buffer;
                 } else {
@@ -264,9 +259,9 @@ struct drive_helper *drive_get_mounts() {
             }
             logging(LOGGING_INFO, "Start reading mark file for systems of drive '%s'", drive->name);
             if (drive_scan(drive, fp)) {
-                logging(LOGGING_INFO, "Finished scanning drive '%s'", drive->name);
-            } else {
                 logging(LOGGING_ERROR, "Failed to scanning drive '%s'", drive->name);
+            } else {
+                logging(LOGGING_INFO, "Finished scanning drive '%s'", drive->name);
             }
             fclose(fp);
         }
