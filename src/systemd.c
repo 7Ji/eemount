@@ -326,10 +326,12 @@ static int systemd_start_stop_unit(const char *unit, int method) {
 int systemd_start_unit(const char *unit) {
     // Since we handle all these mount units by ourselves, overlapped enabled systemd mount units should be disabled during init:
     // rm -f /storage/.config/system.d/*.wants/storage-roms*.mount
+    logging(LOGGING_INFO, "Starting systemd unit '%s'", unit);
     return systemd_start_stop_unit(unit, SYSTEMD_START_UNIT);
 }
 
 int systemd_stop_unit(const char *unit) {
+    logging(LOGGING_INFO, "Stopping systemd unit '%s'", unit);
     return systemd_start_stop_unit(unit, SYSTEMD_STOP_UNIT);
 }
 
