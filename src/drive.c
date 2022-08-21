@@ -39,7 +39,7 @@ free_mark:
 }
 
 static int drive_scan(struct drive *drive, FILE *fp) {
-    char *line, **system, **buffer;
+    char *line, **dsystem, **buffer;
     bool note_empty = false;
     bool illegal_char;
     size_t size_line = 0;
@@ -92,7 +92,7 @@ static int drive_scan(struct drive *drive, FILE *fp) {
         }
         snprintf(path, len_mount_ext_parent + len_drive + len_mount_ext_roms_parent + len_line + 4, MOUNT_EXT_PARENT"/%s/"MOUNT_EXT_ROMS_PARENT"/%s", drive->name, line);
         logging(LOGGING_DEBUG, "Checking if external system directory '%s' exists and create it if neccessary", path);
-        if (!util_mkdir(path, 0755)) {
+        if (util_mkdir(path, 0755)) {
             logging(LOGGING_WARNING, "Failed to create/verify directory '%s', omitting corresponding system");
             continue;
         }
@@ -112,13 +112,13 @@ static int drive_scan(struct drive *drive, FILE *fp) {
                 goto free_system;
             }
         }
-        system = (drive->systems) + (drive->count) - 1;
-        if ((*system = malloc((len_line + 1)*sizeof(char))) == NULL) {
+        dsystem = (drive->systems) + (drive->count) - 1;
+        if ((*dsystem = malloc((len_line + 1)*sizeof(char))) == NULL) {
             logging(LOGGING_ERROR, "Failed to allocate memory for new system name '%s' when scanning drive '%s'", line, drive->name);
             goto free_system;
         } 
-        strncpy(*system, line, len_line);
-        (*system)[len_line] = '\0';
+        strncpy(*dsystem, line, len_line);
+        (*dsystem)[len_line] = '\0';
         logging(LOGGING_DEBUG, "Drive '%s': Found system '%s'", drive->name, *system);
     }
     if (path) {

@@ -170,10 +170,3 @@ bool eeconfig_get_bool(const char *key, const bool bool_default) {
     }
     return bool_default;
 }
-// bool eeconfig_read_bool() {
-
-// }
-
-// char *eeconfig_read(char *config, int *type) {
-
-// }

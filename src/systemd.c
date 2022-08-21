@@ -159,7 +159,7 @@ bool systemd_start_unit(const char *unit) {
     return false;
 }
 
-struct mount_finished_helper *systemd_start_unit_systems(struct systemd_mount_unit_helper *shelper) {
+struct eemount_finished_helper *systemd_start_unit_systems(struct systemd_mount_unit_helper *shelper) {
     // This should return an array of started systems
     struct systemd_mount_unit *root = shelper->root; // It's the caller's duty to make sure there's only one mount unit providing /storage/roms, systemd_get_mounts() should do that
     unsigned int jobs_count = shelper->count-(bool)root; // Actual count should minus one as the [root] one should be mounted earlier, not here
@@ -199,7 +199,7 @@ struct mount_finished_helper *systemd_start_unit_systems(struct systemd_mount_un
     int failed = 0;
     unsigned int finished = 0;
     char **buffer;
-    struct mount_finished_helper *mhelper = NULL;
+    struct eemount_finished_helper *mhelper = NULL;
     sd_bus_message *msg _cleanup_(sd_bus_message_unrefp) = NULL;
     logging(LOGGING_INFO, "Starting to wait for %u jobs to finish", jobs_count);
     for (int i=0; i<SYSTEMD_START_TIMEOUT; ++i) {
@@ -224,7 +224,7 @@ struct mount_finished_helper *systemd_start_unit_systems(struct systemd_mount_un
                         job->finished = true;
                         if (systemd_is_job_success(result)) {
                             if (mhelper == NULL) {
-                                if ((mhelper = malloc(sizeof(struct mount_finished_helper))) == NULL) {
+                                if ((mhelper = malloc(sizeof(struct eemount_finished_helper))) == NULL) {
                                     logging(LOGGING_ERROR, "Failed to allocate memory for global mount helper");
                                     return NULL;
                                 }

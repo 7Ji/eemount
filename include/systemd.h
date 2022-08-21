@@ -104,7 +104,7 @@ struct systemd_mount_helper {
 bool systemd_reload();
 bool systemd_start_unit_no_wait(const char *unit);
 bool systemd_start_unit(const char *unit);
-struct mount_finished_helper *systemd_start_unit_systems(struct systemd_mount_unit_helper *shelper);
+struct eemount_finished_helper *systemd_start_unit_systems(struct systemd_mount_unit_helper *shelper);
 struct systemd_mount_unit_helper *systemd_get_units();
 void systemd_mount_unit_helper_free(struct systemd_mount_unit_helper **shelper);
 /**

@@ -30,6 +30,7 @@ int sort_compare_systemd_mount_unit(const void *a, const void *b);
  */
 int sort_compare_systemd_mount(const void *a, const void *b);
 
+#if 0
 /**
  * @brief Compare two mount_system struct
  * 
@@ -38,4 +39,5 @@ int sort_compare_systemd_mount(const void *a, const void *b);
  * @return int >0 if a's system(name string) is greater, <0 if b's system is greater, 0 if equal
  */
 int sort_compare_mount_system(const void *a, const void *b);
+#endif
 #endif

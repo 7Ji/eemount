@@ -45,21 +45,15 @@ enum logging_levels {
  * @param level The logging level: DEBUG, INFO, WARNING, ERROR, FATAL
  * @param format The format string
  * @param ... The format variables
+ * @return 0 logging output success, 1 logging omitted due to logging level (e.g. trying to log to DEBUG when logging level is at ERROR)
  */
-void logging(const int level, const char *format, ...);
-
-// /**
-//  * @brief Get the logging file descriptor, if you want to send something to it directly
-//  * 
-//  * @param level The logging level: DEBUG, INFO, WARNING, ERROR, FATAL
-//  * @return FILE* The corresponding file descriptor, usually stdout or stderr
-//  */
-// FILE *logging_get_target(const int level);
+int logging(const int level, const char *format, ...);
 
 /**
  * @brief Setting the logging level
  * 
  * @param level The LOGGING_LEVEL to set
+ * @return 0 level updated, 1 level invalid
  */
-void logging_set_level(int level);
+int logging_set_level(int level);
 #endif

@@ -11,9 +11,9 @@ static FILE *logging_get_target(const int level) {
     }
 }
 
-void logging(const int level, const char *format, ...) {
+int logging(const int level, const char *format, ...) {
     if (level > logging_level) {
-        return;
+        return 1;
     }
     FILE *target = logging_get_target(level);
     switch(level) {
@@ -41,10 +41,13 @@ void logging(const int level, const char *format, ...) {
     vfprintf(target, format, vargs);
     va_end(vargs);
     putc('\n', target);
+    return 0;
 }
 
-void logging_set_level(int level) {
+int logging_set_level(int level) {
     if ((level >= LOGGING_DISABLED) && (level <= LOGGING_DEBUG)) {
         logging_level = level;
+        return 0;
     }
+    return 1;
 }

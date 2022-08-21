@@ -20,6 +20,8 @@ int sort_compare_systemd_mount_unit(const void *a, const void *b) {
     return strcmp(((struct systemd_mount_unit *)a)->system, ((struct systemd_mount_unit *)b)->system);
 }
 
+#if 0
 int sort_compare_mount_system(const void *a, const void *b) {
-    return strcmp(((struct mount_system *)a)->system, ((struct mount_system *)b)->system);
+    return strcmp(((struct eemount_system *)a)->system, ((struct eemount_system *)b)->system);
 }
+#endif

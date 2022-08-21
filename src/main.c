@@ -10,10 +10,10 @@ int main() {
     if (eeconfig_initialize()) {
         logging(LOGGING_WARNING, "Failed to initialize eeconfig, all config values will be defaulted");
     }
-    if (mount_routine()) {
-        logging(LOGGING_INFO, "All mount successful, good retro-gaming");
-    } else {
+    if (eemount_routine()) {
         logging(LOGGING_ERROR, "Mount routine failed");
+    } else {
+        logging(LOGGING_INFO, "All mount successful, good retro-gaming");
     }
     systemd_release();
     eeconfig_close();
