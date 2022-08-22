@@ -401,6 +401,16 @@ static int eemount_mount_root(struct systemd_mount_unit_helper *shelper, struct 
     return 1;
 }
 
+static void eemount_free_finished_helper(struct eemount_finished_helper **mhelper) {
+    if (*mhelper) {
+        if ((*mhelper)->count) {
+            free((*mhelper)->systems);
+        }
+        free(*mhelper);
+        *mhelper = NULL;
+    }
+}
+
 static struct eemount_finished_helper *eemount_mount_drive_systems(struct drive_helper *dhelper, struct eemount_finished_helper *mhelper) {
     unsigned int i, j, k;
     struct drive *drive;
@@ -534,5 +544,6 @@ int eemount_routine() {
     }
     eemount_mount_ports_scripts();
     struct eemount_finished_helper *mhelper = eemount_mount_systems(shelper, dhelper);
+    eemount_free_finished_helper(&mhelper);
     return 0;
 }
