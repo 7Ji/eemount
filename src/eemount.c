@@ -281,6 +281,7 @@ static int eemount_mount_partition_eeroms(const char *mount_point) {
                 logging(LOGGING_ERROR, "Can not find the partitions under %s", mount_points[i]);
                 continue;
             }
+            partition = entry->mount_source;
             if ((len_partition = strlen(partition)) < 5) { //  /dev/
                 continue;
             }
