@@ -167,6 +167,7 @@ struct eemount_entry *eemount_find_entry_by_mount_point_start_with(const char *m
 }
 
 bool eemount_is_mount_point(const char* path, struct eemount_table *table) {
+    logging(LOGGING_DEBUG, "Checking if '%s' is a mount point", path);
     bool free_table;
     if (table == NULL) {
         if ((table = eemount_get_table()) == NULL) {
@@ -178,7 +179,9 @@ bool eemount_is_mount_point(const char* path, struct eemount_table *table) {
     }
     for (unsigned i=0; i<table->count; ++i) {
         if (!strcmp(path, (table->entries+i)->mount_point)) {
-            eemount_free_table(&table);
+            if (free_table) {
+                eemount_free_table(&table);
+            }
             return true;
         }
     }
@@ -190,14 +193,12 @@ bool eemount_is_mount_point(const char* path, struct eemount_table *table) {
 
 void eemount_free_table(struct eemount_table **table) {
     if (*table) {
-        if ((*table)->entries) {
-            for (unsigned int i=0; i<(*table)->count; ++i) {
-                free(((*table)->entries+i)->line);
-            }
-            free((*table)->entries);
+        for (unsigned int i=0; i<(*table)->count; ++i) {
+            free(((*table)->entries+i)->line);
         }
+        free((*table)->entries);
         free(*table);
-        *table=NULL;
+        (*table)=NULL;
     }
 }
 
@@ -235,7 +236,13 @@ static int eemount_mount_dir_update(const char* path) {
 }
 
 static int eemount_mount_partition_eeroms(const char *mount_point) {
+    logging(LOGGING_INFO, "Trying to mount EEROMS to '%s'", mount_point);
+    if (util_mkdir(mount_point, 0755)) {
+        logging(LOGGING_ERROR, "Failed to confirm mount point '%s' exists", mount_point);
+        return 1;
+    }
     if (eemount_is_mount_point(mount_point, NULL)) {
+        logging(LOGGING_INFO, "%s is already mounted, no need to mount it again", mount_point);
         return 0;
     }
     struct libmnt_context *cxt = mnt_new_context();
@@ -243,7 +250,6 @@ static int eemount_mount_partition_eeroms(const char *mount_point) {
         logging(LOGGING_ERROR, "Failed to allocate mount context");
         return 1;
     }
-    logging(LOGGING_INFO, "Trying to mount EEROMS to '%s'", mount_point);
     struct eemount_table *table = eemount_get_table();
     if (table) { // If we can get partition table, try the one providing .update and the 3rd partition of boot drive, this is optimal
         logging(LOGGING_INFO, "Trying to get the underlying partition of "PATH_DIR_UPDATE );
@@ -500,8 +506,6 @@ static struct eemount_finished_helper *eemount_mount_systems(struct systemd_moun
         for (unsigned int i=0; i<mhelper->count; ++i) {
             logging(LOGGING_DEBUG, " -> %s", mhelper->systems[i]);
         }
-        free(mhelper->systems);
-        free(mhelper);
     }
     return mhelper;
 }
