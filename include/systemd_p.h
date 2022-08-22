@@ -42,6 +42,7 @@
 #define SYSTEMD_MOUNT_ROOT_UNIT     SYSTEMD_MOUNT_ROOT SYSTEMD_MOUNT_SUFFIX
 #define SYSTEMD_UNIT_DIR            PATH_DIR_STORAGE"/.config/system.d"
 #define SYSTEMD_START_TIMEOUT       10
+#define SYSTEMD_START_TIMEOUT_LOOP  SYSTEMD_START_TIMEOUT*10    // Because we check per 0.1 second
 
 #define SYSTEMD_NAME_START          "Start"
 #define SYSTEMD_NAME_STOP           "Stop"

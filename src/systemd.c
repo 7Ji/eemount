@@ -50,7 +50,7 @@ int systemd_reload() {
     int failed = 0;
     bool pending = false;
     sd_bus_message *msg _cleanup_(sd_bus_message_unrefp) = NULL;
-    for (int i=0; i<SYSTEMD_START_TIMEOUT; ++i) {
+    for (int i=0; i<SYSTEMD_START_TIMEOUT_LOOP; ++i) {
         while (sd_bus_process(systemd_bus, &msg)) {
             logging(LOGGING_DEBUG, "Processing sd_bus message...");
             if (msg) {
@@ -310,7 +310,7 @@ static int systemd_start_stop_unit(const char *unit, int method) {
     char *result;
     int failed = 0;
     sd_bus_message *msg _cleanup_(sd_bus_message_unrefp) = NULL;
-    for (int i=0; i<SYSTEMD_START_TIMEOUT; ++i) {
+    for (int i=0; i<SYSTEMD_START_TIMEOUT_LOOP; ++i) {
         while (sd_bus_process(systemd_bus, &msg)) {
             logging(LOGGING_DEBUG, "Processing sd_bus message...");
             if (msg) {
@@ -390,7 +390,7 @@ struct eemount_finished_helper *systemd_start_unit_systems(struct systemd_mount_
     struct eemount_finished_helper *mhelper = NULL;
     sd_bus_message *msg _cleanup_(sd_bus_message_unrefp) = NULL;
     logging(LOGGING_INFO, "Starting to wait for %u jobs to finish", jobs_count);
-    for (int i=0; i<SYSTEMD_START_TIMEOUT; ++i) {
+    for (int i=0; i<SYSTEMD_START_TIMEOUT_LOOP; ++i) {
         while (sd_bus_process(systemd_bus, &msg)) {
             logging(LOGGING_DEBUG, "Processing sd_bus message...");
             if (msg) {
