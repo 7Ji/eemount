@@ -31,6 +31,7 @@ int main(int argc, char **argv) {
     }
     systemd_start_unit("smbd.service");
     if (argc > 1 && !strcmp(argv[1], "--esrestart")) {
+        logging(LOGGING_INFO, "Restarting EmulationStation per request");
         systemd_restart_unit("emustation.service");
     }
     systemd_release();
