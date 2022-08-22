@@ -2,8 +2,8 @@ BINARY = eemount
 DIR_INCLUDE = include
 DIR_SOURCE = src
 DIR_OBJECT = obj
-CC = gcc
-STRIP = strip
+CC ?= gcc
+STRIP ?= strip
 CFLAGS = -I$(DIR_INCLUDE) -Wall -Wextra
 
 LDFLAGS = -lsystemd -lblkid -lmount

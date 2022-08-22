@@ -61,63 +61,49 @@ struct eemount_table* eemount_get_table() {
         // We do these on our dupped line, so we don't need to malloc all strings
         optional_end = false;
         entry->line[len_line] = '\0';
-        // logging(LOGGING_DEBUG, "Processing mountinfo line: %s", entry->line);
         token = strtok(entry->line, delim);
         segments = 0;
         while (token) {
             switch(++segments) {
                 case 1: // mount ID
                     entry->mount_id = util_uint_from_ulong(strtoul(token, &endptr, 10));
-                    // logging(LOGGING_DEBUG, "Mount ID is %u", entry->mount_id);
                     break;
                 case 2: // parent ID
                     entry->parent_id = util_uint_from_ulong(strtoul(token, &endptr, 10));
-                    // logging(LOGGING_DEBUG, "Parent ID is %u", entry->parent_id);
                     break;
                 case 3: // major:minor
                     entry->major_minor = token;
-                    // logging(LOGGING_DEBUG, "Major:Minor pair is %s", token);
                     entry->major = util_uint_from_ulong(strtoul(token, &endptr, 10));
                     entry->minor = util_uint_from_ulong(strtoul(endptr+1, &endptr, 10));
                     break;
                 case 4: // root
                     entry->root = token;
                     util_unesacpe_mountinfo_in_place(entry->root);
-                    // logging(LOGGING_DEBUG, "Root is %s", token);
                     break;
                 case 5: // mount point
                     entry->mount_point = token;
                     util_unesacpe_mountinfo_in_place(entry->mount_point);
-                    // logging(LOGGING_DEBUG, "Mount Point is %s", token);
                     break;
                 case 6: // mount options
                     entry->mount_options = token;
-                    // logging(LOGGING_DEBUG, "Mount Options are %s", token);
                     break;
                 case 7:
                     if (optional_end) {
                         entry->fstype = token;
-                        // logging(LOGGING_DEBUG, "Filesystem Type is %s", token);
                     } else {
                         if (!strcmp(token, "-")) {
                             optional_end = true;
-                            // logging(LOGGING_DEBUG, "Optional field ends");
-                        } else {
-                            // logging(LOGGING_DEBUG, "Ignored optional field %s", token);
                         }
                         --segments;
                     }
                     break;
                 case 8:
                     entry->mount_source = token;
-                    // logging(LOGGING_DEBUG, "Mount Source is %s", token);
                     break;
                 case 9:
                     entry->super_options = token;
-                    // logging(LOGGING_DEBUG, "Super Options are %s", token);
                     break;
                 default:
-                    // logging(LOGGING_ERROR, "More columns found in mountinfo than expected");
                     break;
             }
             token = strtok(NULL, delim);
@@ -373,8 +359,6 @@ static int eemount_umount_roms() {
     }
 }
 
-
-
 static int eemount_mount_root(struct systemd_mount_unit_helper *shelper, struct drive_helper *dhelper) {
     logging(LOGGING_INFO, "Mounting "PATH_DIR_ROMS"...");
     if (util_mkdir(PATH_DIR_ROMS, 0755)) {
@@ -500,11 +484,19 @@ static struct eemount_finished_helper *eemount_mount_systems(struct systemd_moun
         logging(LOGGING_INFO, "Trying to mount systems provided by external drives");
         mhelper = eemount_mount_drive_systems(dhelper, mhelper);
     }
+    logging(LOGGING_INFO, "Finished mounting systems");
+    if (mhelper && mhelper->count) {
+        logging(LOGGING_DEBUG, "The following systems are mounted from systemd mount units/external drives:");
+        for (unsigned int i=0; i<mhelper->count; ++i) {
+            logging(LOGGING_DEBUG, " -> %s", mhelper->systems[i]);
+        }
+        free(mhelper->systems);
+        free(mhelper);
+    }
     return mhelper;
 }
 
 static int eemount_mount_ports_scripts() {
-    // ports on /storage/roms/ports_scripts type overlay (rw,relatime,lowerdir=/usr/bin/ports,upperdir=/emuelec/ports,workdir=/storage/.tmp/ports-workdir)
     if (util_mkdir(PATH_DIR_PSCRIPTS, 0755) || util_mkdir(PATH_DIR_EMUELEC_PORTS, 0755) || util_mkdir_recursive(PATH_DIR_PSCRIPTS_WORKDIR, 0755)) {
         logging(LOGGING_ERROR, "Failed to create essential folders for "PATH_NAME_PSCRIPTS);
         return 1;
@@ -542,13 +534,5 @@ int eemount_routine() {
     }
     eemount_mount_ports_scripts();
     struct eemount_finished_helper *mhelper = eemount_mount_systems(shelper, dhelper);
-    if (mhelper && mhelper->count) {
-        logging(LOGGING_DEBUG, "The following systems are mounted from systemd mount units/external drives:");
-        for (unsigned int i=0; i<mhelper->count; ++i) {
-            logging(LOGGING_DEBUG, " -> %s", mhelper->systems[i]);
-        }
-        free(mhelper->systems);
-        free(mhelper);
-    }
     return 0;
 }

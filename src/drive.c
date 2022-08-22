@@ -155,7 +155,7 @@ free_systems:
     return 1;
 }
 
-static void drive_free(struct drive *drive) {
+static inline void drive_free(struct drive *drive) {
     for (unsigned int i=0; i<drive->count; ++i) {
         alloc_free_if_used((void **)((drive->systems)+i));
     }
@@ -294,7 +294,6 @@ free_drives:
     if (--(drive_helper->count)) {
         unsigned int i, j;
         for (i=0; i<drive_helper->count; ++i) {
-            // free(((drive_helper->drives)+i)->content);
             for (j=0; j<((drive_helper->drives)+i)->count; ++j) {
                 free(((drive_helper->drives)+i)->systems[j]);
             }

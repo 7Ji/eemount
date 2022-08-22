@@ -12,7 +12,7 @@
 */
 #include "logging_p.h"
 
-static FILE *logging_get_target(const int level) {
+static inline FILE *logging_get_target(const int level) {
     switch(level) {
         case LOGGING_FATAL:
         case LOGGING_ERROR:

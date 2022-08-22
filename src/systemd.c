@@ -259,15 +259,15 @@ static int systemd_call_unit_method_on_manager(const char *unit, const char *met
     return 0;
 }
 
-static int systemd_start_unit_barebone(const char *unit, uint32_t *job_id) {
+static inline int systemd_start_unit_barebone(const char *unit, uint32_t *job_id) {
     return systemd_call_unit_method_on_manager(unit, SYSTEMD_METHOD_START_UNIT, job_id);
 }
 
-static int systemd_stop_unit_barebone(const char *unit, uint32_t *job_id) {
+static inline int systemd_stop_unit_barebone(const char *unit, uint32_t *job_id) {
     return systemd_call_unit_method_on_manager(unit, SYSTEMD_METHOD_STOP_UNIT, job_id);
 }
 
-static bool systemd_is_job_success(const char *result) {
+static inline bool systemd_is_job_success(const char *result) {
     logging(LOGGING_INFO, "Job finished, checking result");
     if (result) {
         if (strcmp(result, "done")) {
@@ -335,14 +335,14 @@ static int systemd_start_stop_unit(const char *unit, int method) {
     return 1;
 }
 
-int systemd_start_unit(const char *unit) {
+static inline int systemd_start_unit(const char *unit) {
     // Since we handle all these mount units by ourselves, overlapped enabled systemd mount units should be disabled during init:
     // rm -f /storage/.config/system.d/*.wants/storage-roms*.mount
     logging(LOGGING_INFO, "Starting systemd unit '%s'", unit);
     return systemd_start_stop_unit(unit, SYSTEMD_START_UNIT);
 }
 
-int systemd_stop_unit(const char *unit) {
+static inline int systemd_stop_unit(const char *unit) {
     logging(LOGGING_INFO, "Stopping systemd unit '%s'", unit);
     return systemd_start_stop_unit(unit, SYSTEMD_STOP_UNIT);
 }
