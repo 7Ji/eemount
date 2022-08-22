@@ -267,6 +267,10 @@ static inline int systemd_stop_unit_barebone(const char *unit, uint32_t *job_id)
     return systemd_call_unit_method_on_manager(unit, SYSTEMD_METHOD_STOP_UNIT, job_id);
 }
 
+static inline int systemd_restart_unit_barebone(const char *unit, uint32_t *job_id) {
+    return systemd_call_unit_method_on_manager(unit, SYSTEMD_METHOD_RESTART_UNIT, job_id);
+}
+
 static inline bool systemd_is_job_success(const char *result) {
     logging(LOGGING_INFO, "Job finished, checking result");
     if (result) {
@@ -292,8 +296,11 @@ static int systemd_start_stop_unit(const char *unit, int method) {
         case (SYSTEMD_STOP_UNIT):
             func = &systemd_stop_unit_barebone;
             break;
+        case (SYSTEMD_RESTART_UNIT):
+            func = &systemd_restart_unit_barebone;
+            break;
         default:
-            logging(LOGGING_ERROR, "Failed to start/stop unit: method %d is not a valid enum int", method);
+            logging(LOGGING_ERROR, "Failed to start/stop/restart unit: method %d is not a valid enum int", method);
             return 1;
     }
     sd_bus_slot *slot _cleanup_(sd_bus_slot_unrefp) = NULL;
@@ -345,6 +352,11 @@ int systemd_start_unit(const char *unit) {
 int systemd_stop_unit(const char *unit) {
     logging(LOGGING_INFO, "Stopping systemd unit '%s'", unit);
     return systemd_start_stop_unit(unit, SYSTEMD_STOP_UNIT);
+}
+
+int systemd_restart_unit(const char *unit) {
+    logging(LOGGING_INFO, "Restarting systemd unit '%s'", unit);
+    return systemd_start_stop_unit(unit, SYSTEMD_RESTART_UNIT);
 }
 
 struct eemount_finished_helper *systemd_start_unit_systems(struct systemd_mount_unit_helper *shelper) {

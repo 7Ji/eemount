@@ -14,7 +14,8 @@
 #include "eeconfig.h"
 #include "logging.h"
 #include "eemount.h"
-int main() {
+#include <string.h>
+int main(int argc, char **argv) {
     if (systemd_init_bus()) {
         logging(LOGGING_FATAL, "Failed to initialize systemd bus");
         return 1;
@@ -29,6 +30,9 @@ int main() {
         logging(LOGGING_INFO, "All mount successful, happy retro-gaming");
     }
     systemd_start_unit("smbd.service");
+    if (argc > 1 && !strcmp(argv[1], "--esrestart")) {
+        systemd_restart_unit("emustation.service");
+    }
     systemd_release();
     eeconfig_close();
     return 0;

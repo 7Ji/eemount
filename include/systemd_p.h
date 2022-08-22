@@ -46,9 +46,11 @@
 
 #define SYSTEMD_NAME_START          "Start"
 #define SYSTEMD_NAME_STOP           "Stop"
+#define SYSTEMD_NAME_RESTART        "Restart"
 
 #define SYSTEMD_METHOD_START_UNIT   SYSTEMD_NAME_START SYSTEMD_NAME_UNIT
 #define SYSTEMD_METHOD_STOP_UNIT    SYSTEMD_NAME_STOP SYSTEMD_NAME_UNIT
+#define SYSTEMD_METHOD_RESTART_UNIT SYSTEMD_NAME_RESTART SYSTEMD_NAME_UNIT
 
 static const size_t len_systemd_unit_dir = strlen(SYSTEMD_UNIT_DIR);
 static const size_t len_systemd_mount_root = strlen(SYSTEMD_MOUNT_ROOT);

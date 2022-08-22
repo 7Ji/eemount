@@ -31,7 +31,12 @@ enum systemd_unit_methods {
      * @brief Method to stop a unit
      * 
      */
-    SYSTEMD_STOP_UNIT
+    SYSTEMD_STOP_UNIT,
+    /**
+     * @brief Method to stop a unit
+     * 
+     */
+    SYSTEMD_RESTART_UNIT
 };
 
 /**
@@ -152,6 +157,13 @@ int systemd_start_unit(const char *unit);
  */
 int systemd_stop_unit(const char *unit);
 
+/**
+ * @brief Restart a systemd unit
+ * 
+ * @param unit The unit name
+ * @return int 0 for success, 1 for failed
+ */
+int systemd_restart_unit(const char *unit);
 /**
  * @brief Start systemd units for system mounts
  * 
