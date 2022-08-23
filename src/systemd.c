@@ -64,8 +64,8 @@ int systemd_reload() {
                 }
                 if (pending) {
                     if (!active) {
-                        logging(LOGGING_INFO, "Waiting 1 extra second due to systemd being dishonest about the daemon reload status...");
-                        sleep(1);
+                        logging(LOGGING_INFO, "Waiting 0.1 extra second due to systemd being dishonest about the daemon reload status...");
+                        usleep(SYSTEMD_POLL_INTERVAL);
                         logging(LOGGING_INFO, "Successfully reloaded systemd units");
                         return 0;
                     }
