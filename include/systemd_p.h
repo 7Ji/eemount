@@ -43,7 +43,7 @@
 #define SYSTEMD_UNIT_DIR            PATH_DIR_STORAGE"/.config/system.d"
 #define SYSTEMD_POLL_INTERVAL       100000 // micro second
 #define SYSTEMD_START_TIMEOUT       10
-#define SYSTEMD_START_TIMEOUT_LOOP  1000000 / SYSTEMD_POLL_INTERVAL  // Because we check per 0.1 second
+#define SYSTEMD_START_TIMEOUT_LOOP  SYSTEMD_START_TIMEOUT * (1000000 / SYSTEMD_POLL_INTERVAL)  // Because we check per 0.1 second
 
 #define SYSTEMD_NAME_START          "Start"
 #define SYSTEMD_NAME_STOP           "Stop"
