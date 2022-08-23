@@ -78,7 +78,7 @@ int systemd_reload() {
             }
         }
         sd_bus_wait(systemd_bus, SYSTEMD_START_TIMEOUT);
-        usleep(100000);
+        usleep(SYSTEMD_POLL_INTERVAL);
     }
     logging(LOGGING_INFO, "Failed to reload systemd units");
     return 1;
@@ -143,17 +143,13 @@ struct systemd_mount_unit_helper *systemd_get_units() {
                 logging(LOGGING_INFO, "Omitted systemd mount unit %s");
                 continue;
             }
-            if (len_system == len_path_name_mark) {
-                if (!strncmp(PATH_NAME_MARK, dir_entry->d_name+len_systemd_mount_root+1, len_path_name_mark)) {
-                    logging(LOGGING_WARNING, "Ignored systemd mount unit %s since the system it provides ("PATH_NAME_MARK") is reserved", dir_entry->d_name);
-                    continue;
-                }
+            if (len_system == len_path_name_mark && !strncmp(PATH_NAME_MARK, dir_entry->d_name+len_systemd_mount_root+1, len_path_name_mark)) {
+                logging(LOGGING_WARNING, "Ignored systemd mount unit %s since the system it provides ("PATH_NAME_MARK") is reserved", dir_entry->d_name);
+                continue;
             }
-            if (len_system == len_path_name_pscripts) {
-                if (!strncmp(PATH_NAME_PSCRIPTS, dir_entry->d_name+len_systemd_mount_root+1, len_path_name_pscripts)) {
-                    logging(LOGGING_WARNING, "Ignored systemd mount unit %s since the system it provides ("PATH_NAME_PSCRIPTS") is reserved", dir_entry->d_name);
-                    continue;
-                }
+            if (len_system == len_path_name_pscripts && !strncmp(PATH_NAME_PSCRIPTS, dir_entry->d_name+len_systemd_mount_root+1, len_path_name_pscripts)) {
+                logging(LOGGING_WARNING, "Ignored systemd mount unit %s since the system it provides ("PATH_NAME_PSCRIPTS") is reserved", dir_entry->d_name);
+                continue;
             }
             mount = helper->mounts + helper->count - 1;
             root = false;
@@ -189,7 +185,7 @@ struct systemd_mount_unit_helper *systemd_get_units() {
             qsort(helper->mounts, helper->count, sizeof(struct systemd_mount_unit), sort_compare_systemd_mount_unit);
             // Root might change
             if (helper->root && helper->root->system[0] != '\0') {
-                logging(LOGGING_DEBUG, "Root pointer not root anymore due to sorting, finding it again");
+                logging(LOGGING_DEBUG, "Systemd mount units helper: root pointer does not point to root anymore due to sorting, finding it again");
                 for (unsigned int i=0; i<helper->count; ++i) {
                     if ((helper->mounts+i)->system[0] == '\0') {
                         helper->root = helper->mounts+i;
@@ -324,7 +320,7 @@ static int systemd_start_stop_unit(const char *unit, int method) {
             }
         }
         sd_bus_wait(systemd_bus, SYSTEMD_START_TIMEOUT);
-        usleep(100000);
+        usleep(SYSTEMD_POLL_INTERVAL);
     }
     logging(LOGGING_WARNING, "Waited timeout after %d seconds, assumming job failed", SYSTEMD_START_TIMEOUT);
     return 1;
@@ -445,7 +441,7 @@ struct eemount_finished_helper *systemd_start_unit_systems(struct systemd_mount_
             }
         }
         sd_bus_wait(systemd_bus, SYSTEMD_START_TIMEOUT);
-        usleep(100000);
+        usleep(SYSTEMD_POLL_INTERVAL);
     }
     return mhelper;
 }
