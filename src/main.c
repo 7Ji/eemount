@@ -14,7 +14,9 @@
 #include "eeconfig.h"
 #include "logging.h"
 #include "eemount.h"
+
 #include <string.h>
+
 int main(int argc, char **argv) {
     if (systemd_init_bus()) {
         logging(LOGGING_FATAL, "Failed to initialize systemd bus");

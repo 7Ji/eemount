@@ -17,7 +17,8 @@
 
 #define PATH_NAME_ROMS      "roms"
 #define PATH_NAME_STORAGE   "storage"
-#define PATH_NAME_PSCRIPTS  "ports_scripts"
+#define PATH_NAME_PORTS     "ports"
+#define PATH_NAME_PSCRIPTS  PATH_NAME_PORTS"_scripts"
 #define PATH_NAME_UPDATE    ".update"
 #define PATH_NAME_EMUELEC   "emuelec"
 #define PATH_NAME_MARK      PATH_NAME_EMUELEC"roms"
@@ -28,7 +29,6 @@
 
 #define PATH_NAME_USR       "usr"
 #define PATH_NAME_BIN       "bin"
-#define PATH_NAME_PORTS     "ports"
 #define PATH_NAME_TMP       ".tmp"
 #define PATH_NAME_WORKDIR   PATH_NAME_PORTS"-workdir"
 

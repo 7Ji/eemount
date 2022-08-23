@@ -259,18 +259,6 @@ static int systemd_call_unit_method_on_manager(const char *unit, const char *met
     return 0;
 }
 
-static inline int systemd_start_unit_barebone(const char *unit, uint32_t *job_id) {
-    return systemd_call_unit_method_on_manager(unit, SYSTEMD_METHOD_START_UNIT, job_id);
-}
-
-static inline int systemd_stop_unit_barebone(const char *unit, uint32_t *job_id) {
-    return systemd_call_unit_method_on_manager(unit, SYSTEMD_METHOD_STOP_UNIT, job_id);
-}
-
-static inline int systemd_restart_unit_barebone(const char *unit, uint32_t *job_id) {
-    return systemd_call_unit_method_on_manager(unit, SYSTEMD_METHOD_RESTART_UNIT, job_id);
-}
-
 static inline bool systemd_is_job_success(const char *result) {
     logging(LOGGING_INFO, "Job finished, checking result");
     if (result) {
@@ -288,16 +276,16 @@ static inline bool systemd_is_job_success(const char *result) {
 }
 
 static int systemd_start_stop_unit(const char *unit, int method) {
-    static int (*func)(const char*, uint32_t*);
+    const char *method_string;
     switch (method) {
         case (SYSTEMD_START_UNIT):
-            func = &systemd_start_unit_barebone;
+            method_string = SYSTEMD_METHOD_START_UNIT;
             break;
         case (SYSTEMD_STOP_UNIT):
-            func = &systemd_stop_unit_barebone;
+            method_string = SYSTEMD_METHOD_STOP_UNIT;
             break;
         case (SYSTEMD_RESTART_UNIT):
-            func = &systemd_restart_unit_barebone;
+            method_string = SYSTEMD_METHOD_RESTART_UNIT;
             break;
         default:
             logging(LOGGING_ERROR, "Failed to start/stop/restart unit: method %d is not a valid enum int", method);
@@ -309,7 +297,7 @@ static int systemd_start_stop_unit(const char *unit, int method) {
         return 1;
     }
     uint32_t job_id;
-    if ((*func)(unit, &job_id)) {
+    if (systemd_call_unit_method_on_manager(unit, method_string, &job_id)) {
         return 1;
     }
     logging(LOGGING_INFO, "Started systemd job '%"PRIu32"', waiting for it to finish", job_id);
@@ -382,7 +370,7 @@ struct eemount_finished_helper *systemd_start_unit_systems(struct systemd_mount_
             continue;
         }
         job = jobs + job_array_id++;
-        if (systemd_start_unit_barebone(unit->name, &(job->job_id))) {
+        if (systemd_call_unit_method_on_manager(unit->name, SYSTEMD_METHOD_START_UNIT, &(job->job_id))) {
             return NULL;
         }
         job->system = unit->system;

@@ -13,22 +13,18 @@
 #include "drive_p.h"
 
 static FILE *drive_check(const char *drive) {
-    char *path_mark;
-    struct stat stat_mark;
-    FILE *fp;
-
-    size_t len_path_mark = (sizeof(PATH_DIR_EXTERNAL) + sizeof(PATH_NAME_ROMS) + sizeof(PATH_NAME_MARK))/sizeof(char) + strlen(drive);
-
-    if ((path_mark = malloc((len_path_mark + 1) * sizeof(char))) == NULL) {
+    size_t len_path_mark = len_drive_path_mark_anonymous + strlen(drive);
+    char *path_mark = malloc((len_path_mark + 1) * sizeof(char));
+    if (path_mark == NULL) {
         logging(LOGGING_ERROR, "Skipped external drive '%s': Failed to allocate memory for mark path under it", drive);
         return NULL;
     }
-
-    int len_path_mark_actual = snprintf(path_mark, len_path_mark + 1, PATH_DIR_EXTERNAL"/%s/"PATH_NAME_ROMS"/"PATH_NAME_MARK, drive);
-    if ((size_t)len_path_mark_actual != len_path_mark) {
+    size_t len_path_mark_actual = (size_t) snprintf(path_mark, len_path_mark + 1, PATH_DIR_EXTERNAL"/%s/"PATH_NAME_ROMS"/"PATH_NAME_MARK, drive);
+    if (len_path_mark_actual != len_path_mark) {
         logging(LOGGING_ERROR, "Formatted mark path '%s' length is wrong: expected %zu, actual %d", path_mark, len_path_mark, len_path_mark_actual);
         goto free_mark;
     }
+    struct stat stat_mark;
     if (stat(path_mark, &stat_mark) != 0) {
         logging(LOGGING_INFO, "Skipped external drive '%s': mark file '%s' either does not exist or is inaccessiable", drive, path_mark);
         logging(LOGGING_DEBUG, "return value of stat(): %d, result: ", errno, strerror(errno));
@@ -38,7 +34,8 @@ static FILE *drive_check(const char *drive) {
         logging(LOGGING_ERROR, "Skipped external drive '%s': mark '%s' is not a regular file", drive, path_mark);
         goto free_mark;
     }
-    if ((fp = fopen(path_mark, "r")) == NULL) {
+    FILE *fp = fopen(path_mark, "r");
+    if (fp== NULL) {
         /* Should we assume this drive should be mounted as a whole? */
         logging(LOGGING_ERROR, "Skipped external drive '%s': can not open mark file '%s' as read-only", drive, path_mark);
         free(path_mark);
@@ -83,17 +80,13 @@ static int drive_scan(struct drive *drive, FILE *fp) {
             logging(LOGGING_WARNING, "Ignored system '%s' defined for drive '%s' since the name contains illegal character", line, drive->name);
             continue;
         }
-        if (len_line == len_path_name_pscripts) {
-            if (!strncmp(line, PATH_NAME_PSCRIPTS, len_path_name_pscripts)) {
-                logging(LOGGING_WARNING, "Ignored system '"PATH_NAME_PSCRIPTS"' for drive '%s' since it's reserved", drive->name);
-                continue;
-            }
+        if (len_line == len_path_name_pscripts && !strncmp(line, PATH_NAME_PSCRIPTS, len_path_name_pscripts)) {
+            logging(LOGGING_WARNING, "Ignored system '"PATH_NAME_PSCRIPTS"' for drive '%s' since it's reserved", drive->name);
+            continue;
         }
-        if (len_line == len_path_name_mark) {
-            if (!strncmp(line, PATH_NAME_MARK, len_path_name_mark)) {
-                logging(LOGGING_WARNING, "Ignored system '"PATH_NAME_MARK"' for drive '%s' since it's reserved", drive->name);
-                continue;
-            }
+        if (len_line == len_path_name_mark && !strncmp(line, PATH_NAME_MARK, len_path_name_mark)) {
+            logging(LOGGING_WARNING, "Ignored system '"PATH_NAME_MARK"' for drive '%s' since it's reserved", drive->name);
+            continue;
         }
         if (path == NULL) {
             len_drive = strlen(drive->name);
@@ -201,13 +194,15 @@ struct drive_helper *drive_get_mounts() {
     struct drive_helper *drive_helper = NULL;
     FILE *fp;
     int delay = eeconfig_get_int(DRIVE_EECONFIG_DELAY);
-    char *target = eeconfig_get_string(DRIVE_EECONFIG_DRIVE);
     int retry = eeconfig_get_int(DRIVE_EECONFIG_RETRY);
+    char *target = eeconfig_get_string(DRIVE_EECONFIG_DRIVE);
     if (delay < 0) {
         logging(LOGGING_WARNING, "Configuration '"DRIVE_EECONFIG_DELAY"' (time in seconds we should wait before each external drive scan) is set to a negative number %d, it is ignored and you should fix the config", delay);
+        delay = 0;
     }
     if (retry < 0) {
         logging(LOGGING_WARNING, "Configuration '"DRIVE_EECONFIG_RETRY"' (counts we should retry scanning external drives) is set to a negative number %d, it is ignored and you should fix the config");
+        retry = 0;
     } 
     for (int try = 0; try < retry+1; ++try) {
         /*  Only under specific conditions will we retry:

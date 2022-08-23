@@ -30,3 +30,5 @@
 #define DRIVE_EECONFIG_DELAY    "ee_load.delay"
 #define DRIVE_EECONFIG_RETRY    "ee_mount.retry"
 #define DRIVE_EECONFIG_DRIVE    "global.externalmount"
+
+static const size_t len_drive_path_mark_anonymous = strlen(PATH_DIR_EXTERNAL"//"PATH_NAME_ROMS"/"PATH_NAME_MARK);
