@@ -33,52 +33,52 @@ int util_int_from_long(long value) {
 }
 
 void util_unesacpe_mountinfo_in_place(char *escaped) {
-    size_t len = strlen(escaped);
     size_t diff = 0;
-    for (size_t i=0; i<len; ++i) {
-        if ((i<len-3) && (escaped[i] == '\\')) {
-            switch (escaped[i+1]) {
+    char *c;
+    for (c=escaped; *c; ++c) {
+        if ((escaped-c) < 3 && *c == '\\') {
+            switch (*(c+1)) {
                 case '0':
-                    switch (escaped[i+2]) {
+                    switch (*(c+2)) {
                         case '1':
-                            switch (escaped[i+3]) {
+                            switch (*(c+3)) {
                                 case '1':
-                                    escaped[i-diff] = '\t';
-                                    i+=3;
+                                    *(c-diff) = '\t';
+                                    c+=3;
                                     diff+=3;
                                     continue;
                                 case '2':
-                                    escaped[i-diff] = '\n';
+                                    *(c-diff) = '\n';
+                                    c+=3;
                                     diff+=3;
-                                    i+=3;
                                     continue;
                             }
                             break;
                         case '4':
-                            if (escaped[i+3] == '0') {
-                                escaped[i-diff] = ' ';
+                            if (*(c+3) == '0') {
+                                *(c-diff) = ' ';
+                                c+=3;
                                 diff+=3;
-                                i+=3;
                                 continue;
                             }
                             break;
                     }
                     break;
                 case '1':
-                    if ((escaped[i+2] == '3') && (escaped[i+3] == '4')) {
-                        escaped[i-diff] = '\\';
+                    if ((*(c+2) == '3') && (*(c+3) == '4')) {
+                        *(c-diff) = '\\';
                         diff+=3;
-                        i+=3;
+                        c+=3;
                         continue;
                     }
                     break;
             }
         }
         if (diff) {
-            escaped[i-diff] = escaped[i];
+            *(c-diff) = *(c);
         }
     }
-    escaped[len-diff] = '\0';
+    *(c-diff) = '\0';
 }
 
 int util_mkdir(const char *path, mode_t mode) {
