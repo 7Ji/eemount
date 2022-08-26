@@ -26,10 +26,9 @@ Combination of roms from the following 3 types media can be mixed at well:
     The mount is essentially an overlay that combines the read-only lower folder ``/usr/bin/ports`` with writable ``/emuelec/ports`` upper folder and use ``/storage/.tmp/ports-workdir`` as workdir
 
 5. ### systems under ``/storage/roms``
-    (If any system is already mounted, it won't be mounted again in the remaining steps)
-    1. Systemd mount units that provide mount for them (``/storage/config/system.d/storage-roms-*.mount``) in alphabetical order.   
-    Note: Multi-layer mount unit (e.g. ``storage-roms-nes-images.mount`` (*``=>/storage/roms/nes/images``*) is valid and considered a system with - in its name (e.g. ``nes-images``) for the ease of management (it will be definitely started after ``storage-roms-nes.mount`` (*``=>/storage/roms/nes``*) if that exists)  
-    Note: Mount units that provide mount for reserved system names (emuelecroms, ports_script) are ignored
+    (If any system is already mounted, it won't be mounted again in the remaining steps)  
+    Scenario 1: systemd mount units √ external drives √
+    1. Systemd mount units that provide mount for layer-1 systems (``storage-roms-nes.mount``, ``storage-roms-snes.mount``, etc) in alphabetical order
     2. Any external drive that has an ``emuelecroms`` with populated **valid** system names. Drives in alphabetical order then systems in that drive in alphabetical order. One system per line, empty lines and lines containing invalid characters (/) or reserved names (emuelec, ports_script) are ignored.  
     E.g. A emuelecroms mark with the following content
         ```
@@ -52,6 +51,14 @@ Combination of roms from the following 3 types media can be mixed at well:
         Wow I'm using a really strange name :/
         ```
         is considered a dirve that should be used for ``/storage/roms`` itself.
+    3. Systemd mount units that provide mount for multi-layer systems (``storage-roms-nes-images.mount``, ``storage-roms-snes-images.mount``, etc)
+
+
+    Scenario 2: systemd mount units √ external drives ×
+     - Systemd mount units that provide mount for them (``/storage/config/system.d/storage-roms-*.mount``) in alphabetical order.   
+
+    Scenario 3: systemd mount units × external drives √
+     - Any external drive that has an ``emuelecroms`` with populated **valid** system names. Drives in alphabetical order then systems in that drive in alphabetical order
 
 ### Compatability
 As this is written purely for EmuELEC, the tool is only guaranteed to work on EmuELEC
@@ -59,14 +66,18 @@ As this is written purely for EmuELEC, the tool is only guaranteed to work on Em
 Example package.mk to build this under a LibreELEC build system:
 
 ```
-PKG_NAME="mount_romfs"
-PKG_VERSION="1"
-PKG_URL=""
-PKG_TOOLCHAIN="make"
-PKG_DEPENDS_TARGET="toolchain systemd"
+# SPDX-License-Identifier: GPL-3.0
+# Copyright (C) 2022-present 7Ji (https://github.com/7Ji)
 
-PKG_MAKE_OPTS_TARGET="CC=${TARGET_PREFIX}gcc"
-PKG_MAKEINSTALL_OPTS_TARGET="STRIP=${TARGET_PREFIX}strip"
+PKG_NAME="eemount"
+PKG_VERSION="367de8248d32b6acec092f2f3a1582621c977322"
+PKG_SHA256="5c3924186be79b02ee8af85b5ae2b23d61dac3cba1e566ee46cc64b47ef2eb81"
+PKG_SITE="https://github.com/7Ji/eemount"
+PKG_URL="${PKG_SITE}/archive/${PKG_VERSION}.tar.gz"
+PKG_DEPENDS_TARGET="toolchain systemd"
+PKG_LONGDESC="Multi-source ROMs mounting utility for EmuELEC"
+PKG_TOOLCHAIN="make"
+PKG_MAKE_OPTS_TARGET="LOGGING_ALL_TO_STDOUT=1"
 ```
 
 # License
