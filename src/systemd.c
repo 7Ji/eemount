@@ -175,8 +175,16 @@ struct systemd_mount_unit_helper *systemd_get_units() {
         strncpy(mount->system, dir_entry->d_name+len_systemd_mount_root+1-root, len_system);
         mount->system[len_system] = '\0';
         if (mount->system[0]) {
-            logging(LOGGING_INFO, "Found systemd mount unit '%s', providing mount for system '%s'", mount->name, mount->system);
+            mount->layer = 1;
+            for (unsigned int i=0; i<len_system; ++i) {
+                if (mount->system[i] == '-') {
+                    ++(mount->layer);
+                }
+            }
+            util_unescape_systemd_unit_name_in_place(mount->system);
+            logging(LOGGING_INFO, "Found systemd mount unit '%s', providing mount for layer-%u system '%s'", mount->name, mount->layer, mount->system);
         } else {
+            mount->layer = 0;
             logging(LOGGING_INFO, "Found systemd mount unit '%s', providing mount for roms dir itself", mount->name);
         }
     }
@@ -343,18 +351,55 @@ int systemd_restart_unit(const char *unit) {
     return systemd_start_stop_unit(unit, SYSTEMD_RESTART_UNIT);
 }
 
-struct eemount_finished_helper *systemd_start_unit_systems(struct systemd_mount_unit_helper *shelper) {
+static bool systemd_mount_unit_system_layer_matcher_1(struct systemd_mount_unit *unit) {
+    if (unit->layer == 1) {
+        return true;
+    }
+    return false;
+}
+
+static bool systemd_mount_unit_system_layer_matcher_2_and_more(struct systemd_mount_unit *unit) {
+    if (unit->layer > 1) {
+        return true;
+    }
+    return false;
+}
+
+struct eemount_finished_helper *systemd_start_unit_systems(struct systemd_mount_unit_helper *shelper, unsigned int layer, struct eemount_finished_helper *mhelper) {
     // This should return an array of started systems
     struct systemd_mount_unit *root = shelper->root; // It's the caller's duty to make sure there's only one mount unit providing /storage/roms, systemd_get_mounts() should do that
-    unsigned int jobs_count = shelper->count-(bool)root; // Actual count should minus one as the [root] one should be mounted earlier, not here
+    unsigned int jobs_count;
+    bool (*layer_matcher)(struct systemd_mount_unit*) = NULL;
+    switch (layer)  {
+        case SYSTEMD_START_UNIT_SYSTEMS_LAYER_ALL:
+            jobs_count = shelper->count-(bool)root; // Actual count should minus one as the [root] one should be mounted earlier, not here
+            break;
+        case SYSTEMD_START_UNIT_SYSTEMS_LAYER_1:
+            layer_matcher = &systemd_mount_unit_system_layer_matcher_1;
+            break;
+        case SYSTEMD_START_UNIT_SYSTEMS_LAYER_2_AND_MORE:
+            layer_matcher = &systemd_mount_unit_system_layer_matcher_2_and_more;
+            break;
+        default:
+            logging(LOGGING_ERROR, "Illegal systemd mount units layer specifier: %u", layer);
+            return mhelper;
+    }
+    if (layer_matcher) {
+        jobs_count = 0;
+        for (unsigned int i; i<shelper->count; ++i) {
+            if ((*layer_matcher)(shelper->mounts+i)) {
+                ++jobs_count;
+            }
+        }
+    }
     if (!jobs_count) {
-        logging(LOGGING_INFO, "No systems provided by systemd units");
-        return NULL;
+        logging(LOGGING_INFO, "No systems provided by systemd units match layer specifier %u", layer);
+        return mhelper;
     }
     sd_bus_slot *slot _cleanup_(sd_bus_slot_unrefp) = NULL;
     if (sd_bus_match_signal(systemd_bus, &slot, SYSTEMD_NAME, SYSTEMD_PATH, SYSTEMD_INTERFACE_MANAGER, "JobRemoved", NULL, NULL) < 0) {
         logging(LOGGING_ERROR, "Failed to match systemd signal, have not started job yet");
-        return NULL;
+        return mhelper;
     }
     struct systemd_mount_unit *unit;
     struct systemd_mount_unit_job jobs[jobs_count];
@@ -365,9 +410,12 @@ struct eemount_finished_helper *systemd_start_unit_systems(struct systemd_mount_
         if (unit == root) { // Don't ever start root unit here
             continue;
         }
+        if (layer_matcher && !(*layer_matcher)(unit)) {
+            continue;
+        }
         job = jobs + job_array_id++;
         if (systemd_call_unit_method_on_manager(unit->name, SYSTEMD_METHOD_START_UNIT, &(job->job_id))) {
-            return NULL;
+            return mhelper;
         }
         job->system = unit->system;
         // job->success = false;
@@ -376,14 +424,13 @@ struct eemount_finished_helper *systemd_start_unit_systems(struct systemd_mount_
     }
     if (job_array_id != jobs_count) {
         logging(LOGGING_ERROR, "Jobs array mismatch");
-        return NULL;
+        return mhelper;
     }
     uint32_t id;
     char *result;
     int failed = 0;
     unsigned int finished = 0;
     char **buffer;
-    struct eemount_finished_helper *mhelper = NULL;
     sd_bus_message *msg _cleanup_(sd_bus_message_unrefp) = NULL;
     logging(LOGGING_INFO, "Starting to wait for %u jobs to finish", jobs_count);
     for (int i=0; i<SYSTEMD_START_TIMEOUT_LOOP; ++i) {
@@ -394,7 +441,7 @@ struct eemount_finished_helper *systemd_start_unit_systems(struct systemd_mount_
                     logging(LOGGING_WARNING, "Failed to read systemd message");
                     if (++failed == 3) {
                         logging(LOGGING_ERROR, "Failed to read for 3 times, assuming job failed");
-                        return NULL;
+                        return mhelper;
                     }
                     continue;
                 }

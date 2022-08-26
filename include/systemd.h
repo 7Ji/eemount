@@ -39,6 +39,12 @@ enum systemd_unit_methods {
     SYSTEMD_RESTART_UNIT
 };
 
+enum systemd_start_unit_systems_layer {
+    SYSTEMD_START_UNIT_SYSTEMS_LAYER_ALL,
+    SYSTEMD_START_UNIT_SYSTEMS_LAYER_1,
+    SYSTEMD_START_UNIT_SYSTEMS_LAYER_2_AND_MORE
+};
+
 /**
  * @brief Strcut for systemd mount units
  * 
@@ -54,6 +60,11 @@ struct systemd_mount_unit {
      * 
      */
     char *system;
+    /**
+     * @brief The layer of the mount, 
+     * 
+     */
+    unsigned int layer;
 };
 
 /**
@@ -170,6 +181,6 @@ int systemd_restart_unit(const char *unit);
  * @param shelper The helper to systemd units
  * @return struct eemount_finished_helper* A helper struct containing successfully mounted systems
  */
-struct eemount_finished_helper *systemd_start_unit_systems(struct systemd_mount_unit_helper *shelper);
+struct eemount_finished_helper *systemd_start_unit_systems(struct systemd_mount_unit_helper *shelper, unsigned int layer, struct eemount_finished_helper *mhelper);
 
 #endif

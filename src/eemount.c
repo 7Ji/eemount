@@ -494,12 +494,21 @@ static struct eemount_finished_helper *eemount_mount_systems(struct systemd_moun
     logging(LOGGING_INFO, "Trying to mount systems");
     struct eemount_finished_helper *mhelper = NULL;
     if (shelper) {
-        logging(LOGGING_INFO, "Trying to mount systems provided by systemd mount units");
-        mhelper = systemd_start_unit_systems(shelper);
+        if (dhelper) {
+            logging(LOGGING_INFO, "Trying to mount layer1 systems provided by systemd mount units");
+            mhelper = systemd_start_unit_systems(shelper, SYSTEMD_START_UNIT_SYSTEMS_LAYER_1, NULL);
+        } else {
+            logging(LOGGING_INFO, "Trying to mount systems provided by systemd mount units");
+            mhelper = systemd_start_unit_systems(shelper, SYSTEMD_START_UNIT_SYSTEMS_LAYER_ALL, NULL);
+        }
     }
     if (dhelper) {
         logging(LOGGING_INFO, "Trying to mount systems provided by external drives");
         mhelper = eemount_mount_drive_systems(dhelper, mhelper);
+        if (shelper) {
+            logging(LOGGING_INFO, "Trying to mount multi-layer systems provided by systemd mount units");
+            mhelper = systemd_start_unit_systems(shelper, SYSTEMD_START_UNIT_SYSTEMS_LAYER_2_AND_MORE, mhelper);
+        }
     }
     logging(LOGGING_INFO, "Finished mounting systems");
     if (mhelper && mhelper->count) {
