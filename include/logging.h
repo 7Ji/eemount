@@ -52,6 +52,12 @@ enum logging_levels {
 };
 
 /**
+ * @brief Initialize the logging subsystem, most importantly, init the timer to 0
+ * 
+ */
+void logging_initialize();
+
+/**
  * @brief Logging something. Automatically append new line
  * 
  * @param level The logging level: DEBUG, INFO, WARNING, ERROR, FATAL

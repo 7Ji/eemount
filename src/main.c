@@ -18,6 +18,7 @@
 #include <string.h>
 
 int main(int argc, char **argv) {
+    logging_initialize();
     if (systemd_init_bus()) {
         logging(LOGGING_FATAL, "Failed to initialize systemd bus");
         return 1;

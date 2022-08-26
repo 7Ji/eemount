@@ -12,6 +12,10 @@
 */
 #include "logging_p.h"
 
+void logging_initialize() {
+    gettimeofday(&logging_time_begin, NULL);
+}
+
 #ifndef LOGGING_ALL_TO_STDOUT
 static inline FILE *logging_get_target(const int level) {
     switch(level) {
@@ -34,6 +38,8 @@ int logging(const int level, const char *format, ...) {
 #else
     FILE *target = logging_get_target(level);
 #endif
+    gettimeofday(&logging_time_current, NULL);
+    fprintf(target, "[%lf] ", ((double)(logging_time_current.tv_sec - logging_time_begin.tv_sec) + ((double)(logging_time_current.tv_usec - logging_time_begin.tv_usec)) / 1000000));
     switch(level) {
         case LOGGING_DEBUG:
             fprintf(target, "[%s] ", logging_prefix_debug);

@@ -14,6 +14,7 @@
 
 #include <stdarg.h>
 #include <string.h>
+#include <sys/time.h>
 
 #define LOGGING_PREFIX_DEBUG    "DEBUG"
 #define LOGGING_PREFIX_INFO     "INFO"
@@ -29,3 +30,5 @@ static const char logging_prefix_warning[] = LOGGING_PREFIX_WARNING;
 static const char logging_prefix_error[] = LOGGING_PREFIX_ERROR;
 static const char logging_prefix_fatal[] = LOGGING_PREFIX_FATAL;
 static const char logging_prefix_missing[] = LOGGING_PREFIX_MISSING;
+
+struct timeval logging_time_begin, logging_time_current;
