@@ -39,6 +39,14 @@ int util_int_from_long(long value);
 void util_unesacpe_mountinfo_in_place(char *escaped);
 
 /**
+ * @brief Unescape a systemd unit name in place
+ * 
+ * @param escaped The name to unescape in place
+ * @return int 0 for success, 1 for failure
+ */
+int util_unescape_systemd_unit_name_in_place(char *escaped);
+
+/**
  * @brief Create a directory on demand
  * 
  * @param path The path to the folder

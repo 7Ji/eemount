@@ -13,6 +13,7 @@
 #include "util.h"
 
 #include <limits.h>
+#include <stdint.h>
 #include <string.h>
 #include <sys/stat.h>
 #include <errno.h>

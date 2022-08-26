@@ -37,18 +37,18 @@ void util_unesacpe_mountinfo_in_place(char *escaped) {
     char *c;
     for (c=escaped; *c; ++c) {
         if ((escaped-c) < 3 && *c == '\\') {
-            switch (*(c+1)) {
+            switch (c[1]) {
                 case '0':
-                    switch (*(c+2)) {
+                    switch (c[2]) {
                         case '1':
-                            switch (*(c+3)) {
+                            switch (c[3]) {
                                 case '1':
-                                    *(c-diff) = '\t';
+                                    c[-diff] = '\t';
                                     c+=3;
                                     diff+=3;
                                     continue;
                                 case '2':
-                                    *(c-diff) = '\n';
+                                    c[-diff] = '\n';
                                     c+=3;
                                     diff+=3;
                                     continue;
@@ -56,7 +56,7 @@ void util_unesacpe_mountinfo_in_place(char *escaped) {
                             break;
                         case '4':
                             if (*(c+3) == '0') {
-                                *(c-diff) = ' ';
+                                c[-diff] = ' ';
                                 c+=3;
                                 diff+=3;
                                 continue;
@@ -66,7 +66,7 @@ void util_unesacpe_mountinfo_in_place(char *escaped) {
                     break;
                 case '1':
                     if ((*(c+2) == '3') && (*(c+3) == '4')) {
-                        *(c-diff) = '\\';
+                        c[-diff] = '\\';
                         diff+=3;
                         c+=3;
                         continue;
@@ -75,10 +75,45 @@ void util_unesacpe_mountinfo_in_place(char *escaped) {
             }
         }
         if (diff) {
-            *(c-diff) = *(c);
+            c[-diff] = *c;
         }
     }
-    *(c-diff) = '\0';
+    c[-diff] = '\0';
+}
+
+static int util_unhex_char(char c) {
+    if (c >= '0' && c <= '9') { // '0' for 0, '9' for 9
+        return c - '0';
+    }
+    if (c >= 'a' && c <= 'f') { // 'a' for 10, 'f' for 15
+        return c - 'a' + 10;
+    }
+    if (c >= 'A' && c <= 'F') { // 'A' for 10, 'F' for 15
+        return c - 'A' + 10;
+    }
+    return -1;
+}
+
+int util_unescape_systemd_unit_name_in_place(char *escaped) {
+    size_t diff = 0;
+    char *c;
+    int upper, lower;
+    for (c=escaped; *c; ++c) {
+        if (*c == '-') {
+            c[-diff] = '/';
+        } else if (*c == '\\') {
+            if ((c[1] != 'x') || ((upper = util_unhex_char(c[2])) < 0) || ((lower = util_unhex_char(c[3])) < 0)) {
+                return -1;
+            }
+            c[-diff] = (char) (((unsigned char)upper << 4U) | (unsigned char)lower);
+            diff += 3;
+            c += 3;
+        } else if (diff) {
+            c[-diff] = *c;
+        }
+    }
+    c[-diff] = '\0';
+    return 0;
 }
 
 int util_mkdir(const char *path, mode_t mode) {
