@@ -12,6 +12,7 @@
 */
 #include "logging_p.h"
 
+#ifndef LOGGING_ALL_TO_STDOUT
 static inline FILE *logging_get_target(const int level) {
     switch(level) {
         case LOGGING_FATAL:
@@ -22,12 +23,17 @@ static inline FILE *logging_get_target(const int level) {
             return stdout;
     }
 }
+#endif
 
 int logging(const int level, const char *format, ...) {
     if (level > logging_level) {
         return 1;
     }
+#ifdef LOGGING_ALL_TO_STDOUT
+    FILE *target = stdout;
+#else
     FILE *target = logging_get_target(level);
+#endif
     switch(level) {
         case LOGGING_DEBUG:
             fprintf(target, "[%s] ", logging_prefix_debug);

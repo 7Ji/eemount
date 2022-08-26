@@ -20,6 +20,11 @@ $(BINARY): $(OBJECTS)
 $(DIR_OBJECT)/%.o: $(DIR_SOURCE)/%.c $(INCLUDES)
 	$(CC) -c -o $@ $< $(CFLAGS)
 
+ifdef LOGGING_ALL_TO_STDOUT
+$(DIR_OBJECT)/logging.o: $(DIR_SOURCE)/logging.c $(INCLUDES)
+	$(CC) -c -o $@ $< $(CFLAGS) -DLOGGING_ALL_TO_STDOUT
+endif
+
 .PHONY: clean
 
 clean:
