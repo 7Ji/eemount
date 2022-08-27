@@ -386,7 +386,7 @@ struct eemount_finished_helper *systemd_start_unit_systems(struct systemd_mount_
     }
     if (layer_matcher) {
         jobs_count = 0;
-        for (unsigned int i; i<shelper->count; ++i) {
+        for (unsigned int i=0; i<shelper->count; ++i) {
             if ((*layer_matcher)(shelper->mounts+i)) {
                 ++jobs_count;
             }
