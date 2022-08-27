@@ -179,7 +179,7 @@ static bool drive_is_name_invalid(const char *name) {
             }
             break;
         case 'E':
-            if (!strcmp(name+1, PATH_NAME_EEROMS+1)) { // EEROMS
+            if (!strcmp(name+1, "EROMS")) { // EEROMS
                 return true;
             }
             break;
