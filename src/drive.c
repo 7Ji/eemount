@@ -157,11 +157,13 @@ static inline void drive_free(struct drive *drive) {
 }
 
 void drive_helper_free(struct drive_helper **drive_helper) {
-    for (unsigned int i=0; i<(*drive_helper)->count; ++i) {
-        drive_free(((*drive_helper)->drives) + i);
+    if (*drive_helper) {
+        for (unsigned int i=0; i<(*drive_helper)->count; ++i) {
+            drive_free(((*drive_helper)->drives) + i);
+        }
+        alloc_free_if_used((void **)&((*drive_helper)->drives));
+        alloc_free_if_used((void**)drive_helper);
     }
-    alloc_free_if_used((void **)&((*drive_helper)->drives));
-    alloc_free_if_used((void**)drive_helper);
 }
 
 static bool drive_is_name_invalid(const char *name) {
