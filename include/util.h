@@ -63,4 +63,6 @@ int util_mkdir(const char *path, mode_t mode);
  * @return int 0 if not exist and create successfully, or already exists; 1 already exists and not folder, or can't check
  */
 int util_mkdir_recursive(const char *path, mode_t mode);
+
+bool util_bool_from_string(const char *string);
 #endif

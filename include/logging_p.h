@@ -23,7 +23,7 @@
 #define LOGGING_PREFIX_FATAL    "FATAL"
 #define LOGGING_PREFIX_MISSING  "MISSING"
 
-static int logging_level = LOGGING_DEBUG;
+static enum logging_levels logging_level = LOGGING_DEBUG;
 static const char logging_prefix_debug[] = LOGGING_PREFIX_DEBUG;
 static const char logging_prefix_info[] = LOGGING_PREFIX_INFO;
 static const char logging_prefix_warning[] = LOGGING_PREFIX_WARNING;

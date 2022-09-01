@@ -19,3 +19,17 @@
 #include <errno.h>
 
 #include "logging.h"
+
+static char *util_bool_true[]  = {
+    "yes",
+    "true",
+    "y",
+    "t"
+};
+
+static char *util_bool_false[] = {
+    "no",
+    "false",
+    "n",
+    "f"
+};

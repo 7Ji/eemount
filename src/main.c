@@ -24,9 +24,6 @@ int main(int argc, char **argv) {
         return 1;
     }
     systemd_stop_unit("smbd.service");
-    if (eeconfig_initialize()) {
-        logging(LOGGING_WARNING, "Failed to initialize eeconfig, all config values will be defaulted");
-    }
     if (eemount_routine()) {
         logging(LOGGING_ERROR, "Mount routine failed");
     } else {
@@ -38,6 +35,5 @@ int main(int argc, char **argv) {
         systemd_restart_unit("emustation.service");
     }
     systemd_release();
-    eeconfig_close();
     return 0;
 }

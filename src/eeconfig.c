@@ -12,173 +12,289 @@
 */
 #include "eeconfig_p.h"
 
-int eeconfig_initialize() {
-    if ((eeconfig = fopen(EECONFIG_FILE, "r")) == NULL) {
-        logging(LOGGING_ERROR, "Failed to open emuelec config file: '"EECONFIG_FILE"'");
-        return 1;
+static inline long eeconfig_read_config(char **buffer) {
+    FILE *fp = fopen(EECONFIG_FILE, "r");
+    if (fp == NULL) {
+        logging(LOGGING_ERROR, "Failed to open config file");
+        return -1;
+    }
+    if (fseek(fp, 0, SEEK_END)) {
+        logging(LOGGING_ERROR, "Failed to seek to the end of config file");
+        fclose(fp);
+        return -1;
+    }
+    long len_file = ftell(fp);
+    if (len_file < 0) {
+        logging(LOGGING_ERROR, "Failed to get config file length");
+        fclose(fp);
+        return len_file;
+    }
+    if (len_file == 0) {
+        logging(LOGGING_ERROR, "Config file empty");
+        fclose(fp);
+        return 0;
+    }
+    if (fseek(fp, 0, SEEK_SET)) {
+        logging(LOGGING_ERROR, "Failed to seek to the start of config file");
+        fclose(fp);
+        return 0;
+    }
+    if (!(*buffer = malloc(sizeof(char)*(len_file+1)))) {
+        logging(LOGGING_ERROR, "Failed to allocate memory for buffer");
+        fclose(fp);
+        return 0;
+    }
+    if (!fread(*buffer, len_file, 1, fp)) {
+        logging(LOGGING_ERROR, "Failed to read config file into buffer");
+        fclose(fp);
+        return 0;
+    }
+    fclose(fp);
+    (*buffer)[len_file] = '\0';
+    return len_file;
+}
+
+static inline int eeconfig_report_setting(const enum eeconfig_get_type type, const char *value, const void *result) {
+    char *c;
+    switch (type) {
+        case EECONFIG_GET_STRING:
+            *((char **)result) = value[0] ? strdup(value) : NULL;
+            logging(LOGGING_DEBUG, "Got setting string: [%s]", *((char **)result));
+            break;
+        case EECONFIG_GET_LONG:
+        case EECONFIG_GET_INT:
+            long buffer = strtol(value, &c, 10);
+            if (type == EECONFIG_GET_LONG) {
+                *((long *)result) = buffer;
+                logging(LOGGING_DEBUG, "Got setting long: [%ld]", buffer);
+            } else {
+                *((int *)result) = util_int_from_long(buffer);
+                logging(LOGGING_DEBUG, "Got setting int: [%d]", *((int *)result));
+            }
+            break;
+        case EECONFIG_GET_BOOL:
+            *((bool *)result) = value[0] ? util_bool_from_string(value) : false;
+            logging(LOGGING_DEBUG, "Got setting boolean: [%s]", *((bool *)result) ? "true" : "false");
+            break;
     }
     return 0;
 }
 
-void eeconfig_close() {
-    if (eeconfig) {
-        fclose(eeconfig);
-        eeconfig = NULL;
-    } else {
-        logging(LOGGING_WARNING, "EE config not initialized yet, ignored close request");
+static inline int eeconfig_get_setting_sanity_check(char *buffer, const long buffersz, const char *setting, const char *platform, const char *rom, const void *result) {
+    // Sanity check
+    if (!buffer || buffersz <= 0) {
+        logging(LOGGING_ERROR, "Illegal buffer to get config from");
+        return 1;
     }
+    if (!setting) {
+        logging(LOGGING_ERROR, "No setting to get is set");
+        return 2;
+    }
+    if (setting[0] == '\0') {
+        logging(LOGGING_ERROR, "Trying to get an empty setting");
+        return 3;
+    }
+    if (rom) {
+        if (rom[0] == '\0') {
+            logging(LOGGING_ERROR, "Trying to get a setting with empty rom");
+            return 4;
+        }
+        if (!platform) {
+            logging(LOGGING_ERROR, "Trying to get a per-rom setting when platform is not given");
+            return 5;
+        }
+    }
+    if (platform && platform[0] == '\0') {
+        logging(LOGGING_ERROR, "Trying to get a setting with empty platform");
+        return 6;
+    }
+    if (!result) {
+        logging(LOGGING_ERROR, "No return pointer given for config read");
+        return 7;
+    }
+    return 0;
 }
 
-char *eeconfig_get_string(const char *key) {
-    if (eeconfig == NULL) {
-        logging(LOGGING_WARNING, "Config '%s' defaulting to NULL since we failed to initialize eeconfig", key);
-        return NULL;
+static inline int eeconfig_get_setting_from_buffer(char *buffer, const long buffersz, const char *setting, const char *platform, const char *rom, const enum eeconfig_get_type type, const void *result) {
+    if (eeconfig_get_setting_sanity_check(buffer, buffersz, setting, platform, rom, result)) {
+        return 1;
     }
-    char *line;
-    size_t size_line = 0;
+    const size_t len_setting = strlen(setting);
+    const size_t len_global_key = len_setting + len_eeconfig_global_prefix + 1;
+    const size_t offset_global_value = len_global_key + 1;
+    const size_t offset_raw_value = len_setting + 1;
+    size_t len_platform, len_platform_key, offset_platform_value;
+    if (platform) {
+        len_platform = strlen(platform);
+        len_platform_key = len_platform + len_setting + 1;
+        offset_platform_value = len_platform_key + 1;
+    } else {
+        len_platform = 0;
+        len_platform_key = 0;
+        offset_platform_value = 0;
+    }
+    size_t len_rom, len_rom_key, offset_rom_value, offset_rom_lquote, offset_rom_rquote, offset_rom_rsquare, offset_rom_sep, offset_rom_rom, offset_rom_setting;
+    if (rom) {
+        len_rom = strlen(rom);
+        len_rom_key = len_platform_key + len_rom + 4;
+        offset_rom_value = len_rom_key + 1;
+        offset_rom_lquote = len_platform + 1;
+        offset_rom_rom = offset_rom_lquote + 1;
+        offset_rom_rquote = offset_rom_rom + len_rom;
+        offset_rom_rsquare = offset_rom_rquote + 1;
+        offset_rom_sep = offset_rom_rsquare + 1;
+        offset_rom_setting = offset_rom_sep + 1;
+    } else {
+        len_rom = 0;
+        len_rom_key = 0;
+        offset_rom_value = 0;
+        offset_rom_lquote = 0;
+        offset_rom_rom = 0;
+        offset_rom_rquote = 0;
+        offset_rom_rsquare = 0;
+        offset_rom_sep = 0;
+        offset_rom_setting = 0;
+    }
     size_t len_line;
-    size_t len_key = strlen(key);
-    size_t len_value;
-    size_t len_alloc = 0;
-    char quote;
-    char *value = NULL;
-    char *buffer;
-    char *line_value = NULL;
-    fseek(eeconfig, 0, SEEK_SET);
-    while (getline(&line, &size_line, eeconfig) != -1) {
-        switch (line[0]) {
-            case '\0': // empty line
-            case '#':  // commen line
-                continue;
-        }
-        if (strncmp(line, key, len_key)) {
-            continue;
-        }
-        len_line = strcspn(line, "\r\n");
-        if (len_line <= len_key) {
-            continue;
-        }
-        if (line[len_key] != '=') {
-            continue;
-        }
-        if (len_line == len_key + 1) {
-            if (len_alloc == 0) {
-                if ((value = malloc(sizeof(char))) == NULL) {
-                    logging(LOGGING_ERROR, "Can not allocate memory for configuration value when reading config key '%s'", key);
-                    return NULL;    
-                }
-                len_alloc = 1;
+    char *line;
+    char *result_rom = NULL, *result_platform = NULL, *result_global = NULL;
+    bool line_valid;
+    bool line_process=false;
+    long i;
+    char *c;
+    for (i=0; i<buffersz; ++i) {
+        if (line_process) {
+            switch (buffer[i]) {
+                case '\0':
+                case '\n':
+                case '\r':
+                    if (line_valid) {
+                        for (c = buffer + i - 1; c > line; --c) {
+                            if (*c == ' ') {
+                                *c = '\0';
+                            } else {
+                                break;
+                            }
+                        }
+                        buffer[i] = '\0';
+                        len_line = buffer + i - line;
+                        if (rom && len_line > len_rom_key && line[len_rom_key] == '=' && line[len_platform] == '[' && line[offset_rom_lquote] == '"' && line[offset_rom_rquote] == '"' && line[offset_rom_rsquare] == ']') {
+                            switch (line[offset_rom_sep]) {
+                                case '-':
+                                case '.':
+                                    if (!(strncmp(line, platform, len_platform) || strncmp(line + offset_rom_rom, rom, len_rom) || strncmp(line + offset_rom_setting, setting, len_setting))) {
+                                        result_rom = line + offset_rom_value;
+                                    }
+                                    break;
+                            }
+                        }
+                        if (!result_rom) {
+                            if (platform && len_line > len_platform_key && line[len_platform_key == '=']) {
+                                switch (line[len_platform]) {
+                                    case '-':
+                                    case '.':
+                                        if (!(strncmp(line, platform, len_platform) || strncmp(line+len_platform+1, setting, len_setting))) {
+                                            result_platform = line + offset_platform_value;
+                                        }
+                                        break;
+                                }
+                            }
+                            if (!result_platform) {
+                                if (len_line > len_global_key && line[len_global_key] == '=') {
+                                    switch (line[len_eeconfig_global_prefix]) {
+                                        case '-':
+                                        case '.':
+                                            if (!(strncmp(line, eeconfig_global_prefix, len_eeconfig_global_prefix) || strncmp(line+offset_eeconfig_global_setting, setting, len_setting))) {
+                                                result_global = line + offset_global_value;
+                                            }
+                                            break;
+                                    }
+                                }
+                                if (!result_global) {
+                                    if (len_line > len_setting && line[len_setting] == '=') {
+                                        if (!strncmp(line, setting, len_setting)) {
+                                            result_global = line + offset_raw_value;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    line_process = false;
+                    break;
             }
-            value[0] = '\0';
-            continue;
-        }
-        switch (line[len_key+1]) {
-            case '\'':
-                quote = '\'';
-                break;
-            case '"':
-                quote = '"';
-                break;
-            default:
-                quote = '\0';
-                break;
-        }
-        if (quote) {
-            if (line[len_line-1] != quote) { // ' and " must come in pair
-                line[len_line] = '\0'; // Just for printing's sake
-                logging(LOGGING_WARNING, "Single quote and double quote not come in pair in emuelec config, please check you config file. Ignored Problematic line:\n%s", line);
-                continue;
-            }
-            len_value = len_line - len_key - 3;
-            line_value = line + len_key + 2;
         } else {
-            len_value = len_line - len_key - 1;
-            line_value = line + len_key + 1;
-        }
-        if (len_value + 1 > len_alloc) {
-            if (len_alloc) {
-                buffer = realloc(value, (len_value+1)*sizeof(char));
-            } else {
-                buffer = malloc((len_value+1)*sizeof(char));
+            switch (buffer[i]) {
+                case '\0':
+                case '\n':
+                case '\r':
+                    buffer[i] = '\0';
+                    break;
+                case '#':
+                    line_process = true;
+                    line_valid = false;
+                    break;
+                default:
+                    line_process = true;
+                    line_valid = true;
+                    line = buffer + i;
+                    break;
             }
-            if (buffer == NULL) {
-                if (len_alloc) {
-                    free(value);
-                }
-                logging(LOGGING_ERROR, "Can not allocate memory for configuration value when reading config key '%s'", key);
-                return NULL;
-            }
-            value = buffer;
-            len_alloc = len_value + 1;
         }
-        strncpy(value, line_value, len_value);
-        value[len_value] = '\0';
     }
-    logging(LOGGING_DEBUG, "Read eeconfig '%s' value string '%s'", key, value);
-    return value;
+    if (result_rom) {
+        eeconfig_report_setting(type, result_rom, result);
+        return 0;
+    }
+    if (result_platform) {
+        eeconfig_report_setting(type, result_platform, result);
+        return 0;
+    }
+    if (result_global) {
+        eeconfig_report_setting(type, result_global, result);
+        return 0;
+    }
+    logging(LOGGING_ERROR, "Setting not found");
+    return 1;
 }
 
-int eeconfig_get_int(const char *key) {
-    if (eeconfig == NULL) {
-        logging(LOGGING_WARNING, "Config '%s' defaulting to 0 since we failed to initialize eeconfig", key);
-        return 0;
-    }
-    char *value = eeconfig_get_string(key);
-    if (value == NULL) {
-        logging(LOGGING_WARNING, "Configuration '%s' not found, defaulting to 0", key);
-        return 0;
-    }
-    if (value[0] == '\0') {
-        logging(LOGGING_WARNING, "Configuration '%s' is empty, defaulting to 0", key);
-        return 0;
-    }
-    char *ptr;
-    long long_value = strtol(value, &ptr, 10);
-    logging(LOGGING_DEBUG, "Converting eeconfig option '%s' value string '%s' to integer %ld", key, value, long_value);
-    free(value);
-    return util_int_from_long(long_value);
-}
-
-bool eeconfig_get_bool(const char *key, const bool bool_default) {
-    if (eeconfig == NULL) {
-        logging(LOGGING_WARNING, "Config '%s' defaulting to false since we failed to initialize eeconfig", key);
-        return false;
-    }
-    char *value = eeconfig_get_string(key);
-    if (value == NULL) {
-        logging(LOGGING_WARNING, "Configuration '%s' not found, using default value '%d'", key, bool_default);
-        return bool_default;
-    }
-    if (value[0] == '\0') {
-        logging(LOGGING_WARNING, "Configuration '%s' is empty, using default value '%d'", key, bool_default);
-        return bool_default;
-    }
-    int i;
-    puts(value);
-    for (i=0; i<5; ++i) {
-        if (!strcasecmp(value, eeconfig_bool_true[i])) {
-            free(value);
-            return true;
-        }
-        if (!strcasecmp(value, eeconfig_bool_false[i])) {
-            free(value);
-            return false;
-        }
-    }
-    char *ptr;
-    long long_value = strtol(value, &ptr, 10);
-    free(value);
-    if (long_value > 0) {
-        return true;
-    }
-    if (long_value < 0) {
-        return false;
-    }
-    logging(LOGGING_WARNING, "Configuration '%s' set but is none of the possible bool value: True (yes, true, y, t, or any positive number including 1) False (no, false, n, f, 0, or any negative number)", key);
-    if (bool_default) {
-        logging(LOGGING_WARNING, "Defaulting configuration '%s' to true", key);
+static inline int eeconfig_get_setting_from_buffer_and_report(char *buffer, const long buffersz, const char *setting, const char *platform, const char *rom, const enum eeconfig_get_type type, const void *result) {
+    int rtr = eeconfig_get_setting_from_buffer(buffer, buffersz, setting, platform, rom, type, result);
+    if (rtr) {
+        logging(LOGGING_ERROR, "Failed to get setting %s for platform %s rom %s", setting, platform, rom);
     } else {
-        logging(LOGGING_WARNING, "Defaulting configuration '%s' to false", key);
+        logging(LOGGING_INFO, "Successfully got setting %s for platform %s rom %s", setting, platform, rom);
     }
-    return bool_default;
+    return rtr;
+}
+
+int eeconfig_get_setting_one(const char *setting, const char *platform, const char *rom, const enum eeconfig_get_type type, const void *result) {
+    char *buffer;
+    long buffersz = eeconfig_read_config(&buffer);
+    if (buffersz < 0) {
+        return 1;
+    }
+    int rtr = eeconfig_get_setting_from_buffer_and_report(buffer, buffersz, setting, platform, rom, type, result);
+    free(buffer);
+    return rtr;
+}
+
+int eeconfig_get_setting_many(struct eeconfig_get_helper *getter, unsigned int get_count) {
+    if (!get_count) {
+        logging(LOGGING_ERROR, "No config to get");
+        return -1;
+    }
+    char *buffer;
+    long buffersz = eeconfig_read_config(&buffer);
+    if (buffersz < 0) {
+        return -2;
+    }
+    int rtr = 0;
+    struct eeconfig_get_helper *current;
+    for (unsigned int i=0; i<get_count; ++i) {
+        current = getter + i;
+        rtr += eeconfig_get_setting_from_buffer_and_report(buffer, buffersz, current->setting, current->platform, current->rom, current->type, current->result);
+    }
+    free(buffer);
+    return rtr;
 }

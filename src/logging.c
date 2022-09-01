@@ -29,7 +29,7 @@ static inline FILE *logging_get_target(const int level) {
 }
 #endif
 
-int logging(const int level, const char *format, ...) {
+int logging(const enum logging_levels level, const char *format, ...) {
     if (level > logging_level) {
         return 1;
     }

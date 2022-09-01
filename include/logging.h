@@ -65,7 +65,7 @@ void logging_initialize();
  * @param ... The format variables
  * @return 0 logging output success, 1 logging omitted due to logging level (e.g. trying to log to DEBUG when logging level is at ERROR)
  */
-int logging(const int level, const char *format, ...);
+int logging(const enum logging_levels level, const char *format, ...);
 
 /**
  * @brief Setting the logging level

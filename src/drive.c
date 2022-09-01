@@ -195,9 +195,15 @@ struct drive_helper *drive_get_mounts() {
     struct drive *drive, *buffer;
     struct drive_helper *drive_helper = NULL;
     FILE *fp;
-    int delay = eeconfig_get_int(DRIVE_EECONFIG_DELAY);
-    int retry = eeconfig_get_int(DRIVE_EECONFIG_RETRY);
-    char *target = eeconfig_get_string(DRIVE_EECONFIG_DRIVE);
+    int delay = 0;
+    int retry = 0;
+    char *target = NULL;
+    struct eeconfig_get_helper getter[] = {
+        {DRIVE_EECONFIG_DELAY, NULL, NULL, EECONFIG_GET_INT, &delay},
+        {DRIVE_EECONFIG_RETRY, NULL, NULL, EECONFIG_GET_INT, &retry},
+        {DRIVE_EECONFIG_DRIVE, NULL, NULL, EECONFIG_GET_STRING, &target},
+    };
+    eeconfig_get_setting_many(getter, 3);
     if (delay < 0) {
         logging(LOGGING_WARNING, "Configuration '"DRIVE_EECONFIG_DELAY"' (time in seconds we should wait before each external drive scan) is set to a negative number %d, it is ignored and you should fix the config", delay);
         delay = 0;
@@ -222,7 +228,7 @@ struct drive_helper *drive_get_mounts() {
         }
         if ((dir = opendir(PATH_DIR_EXTERNAL)) == NULL) {
             logging(LOGGING_ERROR, "Can not open '%s' to check all directories", PATH_DIR_EXTERNAL);
-            return NULL;
+            goto free_target;
         }
         while ((dir_entry = readdir(dir))) {
             if ((dir_entry->d_type != DT_DIR) || drive_is_name_invalid(dir_entry->d_name) || (target && strcmp(dir_entry->d_name, target)) || ((fp = drive_check(dir_entry->d_name)) == NULL)) {
@@ -285,7 +291,7 @@ struct drive_helper *drive_get_mounts() {
         }
     }
     logging(LOGGING_WARNING, "No external rom drives found");
-    return NULL;
+    goto free_target;
 
 free_drives:
     if (--(drive_helper->count)) {
@@ -304,5 +310,9 @@ free_helper:
 free_file:
     fclose(fp);
     closedir(dir);
+free_target:
+    if (target) {
+        free(target);
+    }
     return NULL;
 }

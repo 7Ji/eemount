@@ -17,44 +17,82 @@
 #include <stdbool.h>
 
 /**
- * @brief Initialize the eeconfig. Open the corresponding config file
+ * @brief Helper enum for getting eeconfig
  * 
- * @return 0 The eeconfig file is opened successfully
- * @return 1 The eeconfig file is not opened successfully, all other eeconfig_ calls should not be used
  */
-int eeconfig_initialize();
+enum eeconfig_get_type {
+    /**
+     * @brief Get a string, the returned string, if not NULL, should be cleaned by caller
+     * 
+     */
+    EECONFIG_GET_STRING,
+    /**
+     * @brief Get a long
+     * 
+     */
+    EECONFIG_GET_LONG,
+    /**
+     * @brief Get an integer
+     * 
+     */
+    EECONFIG_GET_INT,
+    /**
+     * @brief Get a boolean
+     * 
+     */
+    EECONFIG_GET_BOOL
+};
 
 /**
- * @brief Close the eeconfig. Only use after eeconfig_initialize() returns true
+ * @brief Helper struct to get multiple eeconfig settings
  * 
  */
-void eeconfig_close();
+struct eeconfig_get_helper {
+    /**
+     * @brief The setting itself
+     * 
+     */
+    const char *setting;
+    /**
+     * @brief The platform
+     * 
+     */
+    const char *platform;
+    /**
+     * @brief The ROM
+     * 
+     */
+    const char *rom;
+    /**
+     * @brief The type of the setting
+     * 
+     */
+    const enum eeconfig_get_type type;
+    /**
+     * @brief Pointer to the returned setting
+     * 
+     */
+    const void *result;
+};
 
 /**
- * @brief Get a config value string
+ * @brief Get only one setting
  * 
- * @param key The key string, without =, e.g. global.externaldrive
- * @return char* The value string, quotes in pair will be stripped. NULL if nothing read (failed). The result should be freed by the caller
+ * @param setting The setting itself
+ * @param platform The platform
+ * @param rom The ROM
+ * @param type The type of the setting
+ * @param result Pointer to the returned setting
+ * @return int 0 for success, positive for failure
  */
-char* eeconfig_get_string(const char *key);
+int eeconfig_get_setting_one(const char *setting, const char *platform, const char *rom, const enum eeconfig_get_type type, const void *result);
 
 /**
- * @brief Get a config value integer
+ * @brief Get multiple settings
  * 
- * @param key The key string, without =, e.g. ee_mount.delay
- * @return int The value, capped as integer, 0 if failed to read or illegal
+ * @param getter The helper struct array for each setting
+ * @param get_count The count of settings to get
+ * @return int 0 for success, positive for failure in getting settings, negative for failure in initialization
  */
-int eeconfig_get_int(const char *key);
-
-/**
- * @brief Get a config value boolean
- * 
- * @param key The key string, without =, e.g. global.network
- * @param bool_default The default boolean to return if failed to read or illegal value found
- * @return true The result is either one of the following strings (case-insensitive): 
- *                  true, yes, t, y, [all positive numbers].
- * @return false The result is either one of the following strings (case-insensitive):
- *                  false, no, f, n, 0, [all negative numbers]
- */
-bool eeconfig_get_bool(const char *key, const bool bool_default);
+int eeconfig_get_setting_many(struct eeconfig_get_helper *getter, unsigned int get_count);
 #endif

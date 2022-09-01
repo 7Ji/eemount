@@ -22,20 +22,7 @@
 #define EECONFIG_DIR       "/storage/.config/emuelec/configs"
 #define EECONFIG_FILE      EECONFIG_DIR "/emuelec.conf"
 
-static FILE *eeconfig = NULL;
-
-static char *eeconfig_bool_true[]  = {
-    "yes",
-    "true",
-    "y",
-    "t",
-    "1"
-};
-
-static char *eeconfig_bool_false[] = {
-    "no",
-    "false",
-    "n",
-    "f",
-    "0"
-};
+#define EECONFIG_GLOBAL_PREFIX  "global"
+static const char eeconfig_global_prefix[] = EECONFIG_GLOBAL_PREFIX;
+static const size_t len_eeconfig_global_prefix = strlen(EECONFIG_GLOBAL_PREFIX);
+static const size_t offset_eeconfig_global_setting = len_eeconfig_global_prefix + 1;

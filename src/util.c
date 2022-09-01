@@ -165,3 +165,17 @@ int util_mkdir_recursive(const char *path, mode_t mode) {
     logging(LOGGING_INFO, "Successfully mkdir '%s' recursively", path);
     return 0;
 }
+
+bool util_bool_from_string(const char *string) {
+    for (unsigned i=0; i<4; ++i) {
+        if (!strcasecmp(string, util_bool_true[i])) {
+            return true;
+        }
+        if (!strcasecmp(string, util_bool_false[i])) {
+            return false;
+        }
+    }
+    char *ptr;
+    long long_value = strtol(string, &ptr, 10);
+    return long_value > 0;
+}
