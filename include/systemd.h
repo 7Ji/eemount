@@ -181,6 +181,6 @@ int systemd_restart_unit(const char *unit);
  * @param shelper The helper to systemd units
  * @return struct eemount_finished_helper* A helper struct containing successfully mounted systems
  */
-struct eemount_finished_helper *systemd_start_unit_systems(struct systemd_mount_unit_helper *shelper, unsigned int layer, struct eemount_finished_helper *mhelper);
+struct eemount_finished_helper *systemd_start_unit_systems(struct systemd_mount_unit_helper *shelper, enum systemd_start_unit_systems_layer layer, struct eemount_finished_helper *mhelper);
 
 #endif

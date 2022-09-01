@@ -56,6 +56,7 @@ static inline long eeconfig_read_config(char **buffer) {
 
 static inline int eeconfig_report_setting(const enum eeconfig_get_type type, const char *value, const void *result) {
     char *c;
+    long buffer;
     switch (type) {
         case EECONFIG_GET_STRING:
             *((char **)result) = value[0] ? strdup(value) : NULL;
@@ -63,7 +64,7 @@ static inline int eeconfig_report_setting(const enum eeconfig_get_type type, con
             break;
         case EECONFIG_GET_LONG:
         case EECONFIG_GET_INT:
-            long buffer = strtol(value, &c, 10);
+            buffer = strtol(value, &c, 10);
             if (type == EECONFIG_GET_LONG) {
                 *((long *)result) = buffer;
                 logging(LOGGING_DEBUG, "Got setting long: [%ld]", buffer);

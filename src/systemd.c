@@ -365,7 +365,7 @@ static bool systemd_mount_unit_system_layer_matcher_2_and_more(struct systemd_mo
     return false;
 }
 
-struct eemount_finished_helper *systemd_start_unit_systems(struct systemd_mount_unit_helper *shelper, unsigned int layer, struct eemount_finished_helper *mhelper) {
+struct eemount_finished_helper *systemd_start_unit_systems(struct systemd_mount_unit_helper *shelper, enum systemd_start_unit_systems_layer layer, struct eemount_finished_helper *mhelper) {
     // This should return an array of started systems
     struct systemd_mount_unit *root = shelper->root; // It's the caller's duty to make sure there's only one mount unit providing /storage/roms, systemd_get_mounts() should do that
     unsigned int jobs_count;
