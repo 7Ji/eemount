@@ -1,3 +1,6 @@
+**ARCHIVED UNTIL I FINISH MY 2023 POST-GRADUATTE ADMISSION EXAM ON DEC 24TH AND 25TH  
+归档至23考研结束**
+
 # Multi-source ROMs mounting utility for EmuELEC
 
 This is the new-generation mounting utility for EmuELEC, that can mount roms across tens of different storage mediums (cifs/nfs/sftp network shares, extenal drives, etc) altogether in at most under 3 seconds (If no systemd network mount is involved, this can be further pushed to under 0.2 seconds)
