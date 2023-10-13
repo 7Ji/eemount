@@ -1,5 +1,7 @@
 # Multi-source ROMs mounting utility for EmuELEC
 
+**This is already a part of EmuELEC since v4.6, you shouldn't need to install this manually by yourself**
+
 This is the new-generation mounting utility for EmuELEC, that can mount roms across tens of different storage mediums (cifs/nfs/sftp network shares, extenal drives, etc) altogether in at most under 3 seconds (If no systemd network mount is involved, this can be further pushed to under 0.2 seconds)
 
 Combination of roms from the following 3 types media can be mixed at well:
